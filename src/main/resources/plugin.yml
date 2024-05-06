@@ -1,0 +1,8 @@
+name: RedstORE
+version: 0.1
+main: RedstORE
+api-version: 1.16
+commands:
+  redstore:
+    description: Interface with the RedstORE system
+    usage: /redstore <subcommand>
