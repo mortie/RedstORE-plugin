@@ -12,13 +12,26 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     @CatchUnknown
     @Subcommand("info")
     fun info(player: Player) {
-        player.sendMessage("Hi! I'm RedstORE ${redstore.description.version}")
+        player.sendMessage("Hi! I'm RedstORE ${redstore.description.version}");
     }
 
     @Subcommand("connect")
-    fun add(player: Player) {
-        val loc = player.getLocation().subtract(0.0, 1.0, 0.0);
-        player.sendMessage("Adding connection to ${loc.getBlockX()},${loc.getBlockY()},${loc.getBlockZ()}")
-        redstore.addStoreConnection(loc)
+    fun connect(player: Player) {
+        val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
+        redstore.addStoreConnection(block);
+        player.sendMessage("Added connection at " +
+            "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
+    }
+
+    @Subcommand("disconnect")
+    fun disconnect(player: Player) {
+        val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
+        if (redstore.removeStoreConnection(block)) {
+            player.sendMessage("Removed connection at " +
+                "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
+        } else {
+            player.sendMessage("! No connection at " +
+                "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
+        }
     }
 }
