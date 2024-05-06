@@ -1,3 +1,4 @@
 .gradle/
 .idea/
 build/
+kls_database.db
