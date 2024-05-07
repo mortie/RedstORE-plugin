@@ -160,7 +160,8 @@ class StorageConnection(
                 if (x == 0) repeaterOff else repeaterOn;
             }
 
-            logger.log(Level.INFO, "Begin txn: R? ${shouldRead}, W? ${shouldWrite}, addr: ${address}");
+            logger.log(Level.INFO, "Begin txn: ${mode}, " +
+                "where: ${address * props.pageSize}");
             transaction = TxnState(
                 mode = mode,
                 address = address,
@@ -194,7 +195,8 @@ class StorageConnection(
 
             val byte = txn.page[txn.bytePosition].toInt();
             val bit = byte and (1 shl txn.bitPosition);
-            txn.dataRepeaters[index] = if (bit == 0) repeaterOff else repeaterOn;
+            txn.dataRepeaters[txn.dataRepeaters.size - index - 1] =
+                if (bit == 0) repeaterOff else repeaterOn;
 
             txn.bitPosition += 1;
             if (txn.bitPosition >= 8) {
@@ -207,11 +209,30 @@ class StorageConnection(
     fun handleWrite() {
         var txn = transaction!!;
 
-        // TODO
-        txn.bytePosition = txn.page.size;
+        val bits = readBits(dataBitsStart, props.dataBits);
+        repeat(txn.dataRepeaters.size) { index ->
+            if (txn.bytePosition >= txn.page.size) {
+                return@repeat;
+            }
+
+            var byte = txn.page[txn.bytePosition].toInt();
+            if (bits and (1 shl index) == 0) {
+                byte = byte and (1 shl txn.bitPosition).inv();
+            } else {
+                byte = byte or (1 shl txn.bitPosition);
+            }
+            txn.page[txn.bytePosition] = byte.toByte();
+
+            txn.bitPosition += 1;
+            if (txn.bitPosition >= 8) {
+                txn.bitPosition = 0;
+                txn.bytePosition += 1;
+            }
+        }
     }
 
     fun endTransaction() {
+        var txn = transaction!!;
         transaction = null;
 
         var pos = addressBitsStart;
@@ -224,6 +245,19 @@ class StorageConnection(
         repeat(props.dataBits) {
             pos.setBlockData(repeaterOff);
             pos = pos.getRelative(props.direction, 2);
+        }
+
+        readBit.setBlockData(repeaterOff);
+        writeBit.setBlockData(repeaterOff);
+
+        if (txn.mode == TxnMode.WRITE) {
+            val length = txn.address.toLong() * props.pageSize + props.pageSize;
+            if (props.file.length() < length) {
+                props.file.setLength(length);
+            }
+
+            props.file.seek(txn.address.toLong() * props.pageSize);
+            props.file.write(txn.page);
         }
     }
 
@@ -250,6 +284,17 @@ class StorageConnection(
         for (repeater in txn.addressRepeaters) {
             pos.setBlockData(repeater);
             pos = pos.getRelative(props.direction, 2);
+        }
+
+        when (txn.mode) {
+            TxnMode.READ -> {
+                readBit.setBlockData(repeaterOn);
+                writeBit.setBlockData(repeaterOff);
+            }
+            TxnMode.WRITE -> {
+                writeBit.setBlockData(repeaterOn);
+                readBit.setBlockData(repeaterOff);
+            }
         }
 
         if (txn.mode == TxnMode.READ) {

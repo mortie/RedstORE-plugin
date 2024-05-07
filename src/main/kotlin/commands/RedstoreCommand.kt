@@ -41,7 +41,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             facing = rotateFacing(player.getFacing()),
             addressBits = 4,
             dataBits = 8,
-            pageSize = 16,
+            pageSize = 8,
 
             file = RandomAccessFile("hello.txt", "rw"),
         ))
