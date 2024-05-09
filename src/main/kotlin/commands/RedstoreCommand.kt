@@ -2,6 +2,7 @@ package commands
 
 import RedstORE
 import ConnectionProperties
+import ConnMode
 import co.aikar.commands.BaseCommand
 import co.aikar.commands.annotation.*
 import org.bukkit.entity.Player
@@ -13,7 +14,7 @@ import java.io.RandomAccessFile
 class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     @Default
     @CatchUnknown
-    @Subcommand("info")
+    @Subcommand("version")
     fun info(player: Player) {
         player.sendMessage("Hi! I'm RedstORE ${redstore.description.version}");
     }
@@ -33,15 +34,26 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     }
 
     @Subcommand("connect")
-    fun connect(player: Player) {
+    @CommandCompletion("read|write")
+    fun connect(player: Player, modeStr: String) {
+        val mode = when (modeStr) {
+            "read" -> ConnMode.READ;
+            "write" -> ConnMode.WRITE;
+            else -> {
+                player.sendMessage("Unknown mode: '${modeStr}'. Expected 'read' or 'write'.");
+                return;
+            }
+        }
+
         val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
         redstore.addStoreConnection(ConnectionProperties(
+            mode = mode,
             origin = block,
             direction = player.getFacing(),
             facing = rotateFacing(player.getFacing()),
             addressBits = 4,
-            dataBits = 8,
-            pageSize = 8,
+            wordSize = 16,
+            pageSizeWords = 8,
 
             file = RandomAccessFile("hello.txt", "rw"),
         ))
