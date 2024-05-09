@@ -4,10 +4,16 @@ import org.bukkit.Bukkit
 import org.bukkit.Material
 import co.aikar.commands.PaperCommandManager
 import java.util.logging.Level
+import java.util.UUID
 import commands.RedstoreCommand
+
+class RedstOREPlayer {
+    var connections = HashMap<Block, StorageConnection>();
+}
 
 class RedstORE: JavaPlugin() {
     var connections = HashMap<Block, StorageConnection>();
+    var players = HashMap<UUID, RedstOREPlayer>();
     var materials: Materials? = null;
 
     override fun onEnable() {
@@ -31,27 +37,42 @@ class RedstORE: JavaPlugin() {
         logger.log(Level.INFO, "RedstORE disabled!")
     }
 
-    public fun addStoreConnection(props: ConnectionProperties) {
+    public fun addStoreConnection(playerId: UUID, props: ConnectionProperties) {
+        var player = players.get(playerId);
+        if (player == null) {
+            player = RedstOREPlayer();
+            players.set(playerId, player);
+        }
+
         logger.log(Level.INFO, "Adding connection at " +
             "(${props.origin.getX()}, ${props.origin.getY()}, ${props.origin.getZ()})");
         removeStoreConnection(props.origin);
         var conn = StorageConnection(
-            materials!!, logger, this, props);
+            materials!!, logger, this, props, playerId);
         var task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
         conn.task = task;
         connections.set(props.origin, conn);
+        player.connections.set(props.origin, conn);
     }
 
     public fun removeStoreConnection(block: Block): Boolean {
         val conn = connections.get(block);
-        if (conn != null) {
-            logger.log(Level.INFO, "Removing connection at " +
-                "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
-            conn.close();
-            connections.remove(block);
-            return true;
-        } else {
+        if (conn == null) {
             return false;
         }
+
+        val player = Bukkit.getPlayer(conn.playerId);
+        if (player != null) {
+            val origin = conn.props.origin;
+            player.sendMessage("Connection removed at " +
+                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
+        }
+
+        logger.log(Level.INFO, "Removing connection at " +
+            "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
+        conn.close();
+        connections.remove(block);
+        players.get(conn.playerId)?.connections?.remove(block);
+        return true;
     }
 }

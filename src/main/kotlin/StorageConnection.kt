@@ -4,6 +4,7 @@ import org.bukkit.Material
 import org.bukkit.scheduler.BukkitTask
 import java.util.logging.Logger
 import java.util.logging.Level
+import java.util.UUID
 import java.io.RandomAccessFile
 import java.lang.Math
 
@@ -45,7 +46,8 @@ class StorageConnection(
     private val materials: Materials,
     private val logger: Logger,
     private val redstore: RedstORE,
-    private val props: ConnectionProperties,
+    public val props: ConnectionProperties,
+    public val playerId: UUID,
 ): Runnable {
     public var task: BukkitTask? = null;
 

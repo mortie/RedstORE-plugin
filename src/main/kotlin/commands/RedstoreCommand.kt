@@ -46,7 +46,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         }
 
         val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
-        redstore.addStoreConnection(ConnectionProperties(
+        redstore.addStoreConnection(player.getUniqueId(), ConnectionProperties(
             mode = mode,
             origin = block,
             direction = player.getFacing(),
@@ -56,7 +56,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             pageSizeWords = 8,
 
             file = RandomAccessFile("hello.txt", "rw"),
-        ))
+        ));
         player.sendMessage("Added connection at " +
             "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
     }
