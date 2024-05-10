@@ -96,7 +96,7 @@ class RedstORE: JavaPlugin() {
 
         addStoreConnectionUnchecked(player.getUniqueId(), props);
         val origin = props.origin;
-        player.sendMessage("Added connection at " +
+        player.sendMessage("Added RedstORE connection at " +
             "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
 
         return true;
@@ -137,7 +137,7 @@ class RedstORE: JavaPlugin() {
 
         val player = Bukkit.getPlayer(meta.playerUUID);
         if (player != null) {
-            player.sendMessage("Removed connection at " +
+            player.sendMessage("Removed RedstORE connection at " +
                 "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
         }
 
