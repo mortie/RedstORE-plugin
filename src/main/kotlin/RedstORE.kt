@@ -1,13 +1,15 @@
 package redstore
 
 import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.entity.Player
 import org.bukkit.block.Block
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import co.aikar.commands.PaperCommandManager
 import java.util.UUID
 import commands.RedstoreCommand
-import redstore.RedstOREDatabase;
+import redstore.RedstOREDatabase
+import redstore.checkPlayerPermission
 
 class RedstORE: JavaPlugin() {
     val connections = HashMap<UUID, StorageConnection>();
@@ -40,7 +42,11 @@ class RedstORE: JavaPlugin() {
             val task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
             conn.task = task;
             connections.set(meta.uuid, conn);
-            logger.info("Loaded connection ${meta.uuid} at ${props.origin}");
+            val origin = props.origin;
+            logger.info(
+                "Loaded connection ${meta.uuid} at " +
+                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})@" +
+                "${origin.getWorld().getName()}");
         }
 
         logger.info("RedstORE enabled!");
@@ -57,7 +63,27 @@ class RedstORE: JavaPlugin() {
         logger.info("RedstORE disabled!");
     }
 
-    public fun addStoreConnection(playerUUID: UUID, props: ConnectionProperties) {
+    public fun addStoreConnection(
+        player: Player,
+        props: ConnectionProperties,
+    ): Boolean {
+        if (!checkPlayerPermission(player, props)) {
+            player.sendMessage("You don't have permission to do that here.");
+            return false;
+        }
+
+        addStoreConnectionUnchecked(player.getUniqueId(), props);
+        val origin = props.origin;
+        player.sendMessage("Added connection at " +
+            "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
+
+        return true;
+    }
+
+    fun addStoreConnectionUnchecked(
+        playerUUID: UUID,
+        props: ConnectionProperties,
+    ) {
         removeStoreConnection(props.origin);
 
         val origin = props.origin;

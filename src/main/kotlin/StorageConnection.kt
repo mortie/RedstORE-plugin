@@ -1,7 +1,10 @@
 package redstore
 
+import org.bukkit.Bukkit
 import org.bukkit.block.Block
 import org.bukkit.block.BlockFace
+import org.bukkit.entity.Player
+import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.Material
 import org.bukkit.scheduler.BukkitTask
 import java.util.logging.Logger
@@ -43,6 +46,44 @@ data class TxnState(
     var bitPosition: Int,
 ) {}
 
+fun checkPlayerCanBreak(player: Player, block: Block): Boolean {
+    val evt = BlockBreakEvent(block, player);
+    Bukkit.getServer().getPluginManager().callEvent(evt);
+    return !evt.isCancelled();
+}
+
+fun checkPlayerPermission(player: Player, props: ConnectionProperties): Boolean {
+    // Origin
+    var block = props.origin;
+    if (!checkPlayerCanBreak(player, block)) {
+        return false;
+    }
+
+    // Activate block
+    block = block.getRelative(props.direction, 2);
+    if (!checkPlayerCanBreak(player, block)) {
+        return false;
+    }
+
+    // Address bits
+    repeat(props.addressBits) {
+        block = block.getRelative(props.direction, 2);
+        if (!checkPlayerCanBreak(player, block)) {
+            return@checkPlayerPermission false;
+        }
+    }
+
+    // Data bits
+    repeat(props.wordSize) {
+        block = block.getRelative(props.direction, 2);
+        if (!checkPlayerCanBreak(player, block)) {
+            return@checkPlayerPermission false;
+        }
+    }
+
+    return true;
+}
+
 class StorageConnection(
     private val materials: Materials,
     private val logger: Logger,
@@ -72,26 +113,25 @@ class StorageConnection(
 
         var block = props.origin;
         block.setType(materials.origin);
-        block = block.getRelative(props.direction, 2);
 
+        block = block.getRelative(props.direction, 2);
         activateMaterial = when (props.mode) {
             ConnMode.READ -> materials.readBit;
             ConnMode.WRITE -> materials.writeBit;
         };
         block.setType(activateMaterial);
         activateBlock = block;
-        block = block.getRelative(props.direction, 2);
 
-        addressBlocksStart = block;
+        addressBlocksStart = block.getRelative(props.direction, 2);
         repeat(props.addressBits) {
-            block.setType(materials.addressBits);
             block = block.getRelative(props.direction, 2);
+            block.setType(materials.addressBits);
         }
 
-        dataBlocksStart = block;
+        dataBlocksStart = block.getRelative(props.direction, 2);
         repeat(props.wordSize) {
-            block.setType(materials.dataBits);
             block = block.getRelative(props.direction, 2);
+            block.setType(materials.dataBits);
         }
     }
 

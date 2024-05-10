@@ -26,13 +26,14 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             "read" -> ConnMode.READ;
             "write" -> ConnMode.WRITE;
             else -> {
-                player.sendMessage("Unknown mode: '${modeStr}'. Expected 'read' or 'write'.");
+                player.sendMessage(
+                    "Unknown mode: '${modeStr}'. Expected 'read' or 'write'.");
                 return;
             }
         }
 
         val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
-        redstore.addStoreConnection(player.getUniqueId(), ConnectionProperties(
+        redstore.addStoreConnection(player, ConnectionProperties(
             mode = mode,
             origin = block,
             direction = player.getFacing(),
@@ -42,9 +43,6 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
 
             file = File("hello.txt"),
         ));
-
-        player.sendMessage("Added connection at " +
-            "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
     }
 
     @Subcommand("disconnect")
