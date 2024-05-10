@@ -14,7 +14,7 @@ import redstore.checkPlayerPermission
 class RedstORE: JavaPlugin() {
     val connections = HashMap<UUID, StorageConnection>();
     var materials: Materials? = null;
-    var db: RedstOREDatabase? = null;
+    public var db: RedstOREDatabase? = null;
 
     override fun onEnable() {
         this.dataFolder.mkdirs();

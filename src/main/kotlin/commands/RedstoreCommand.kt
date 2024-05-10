@@ -5,9 +5,30 @@ import redstore.ConnectionProperties
 import redstore.ConnMode
 import co.aikar.commands.BaseCommand
 import co.aikar.commands.annotation.*
+import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.block.BlockFace
 import java.io.File
+
+fun parseDirection(dir: String) = when (dir) {
+    "north" -> BlockFace.NORTH;
+    "south" -> BlockFace.SOUTH;
+    "east" -> BlockFace.EAST;
+    "west" -> BlockFace.WEST;
+    "up" -> BlockFace.UP;
+    "down" -> BlockFace.DOWN;
+    else -> null;
+}
+
+fun stringifyDirection(dir: BlockFace) = when (dir) {
+    BlockFace.NORTH -> "north";
+    BlockFace.SOUTH -> "south";
+    BlockFace.EAST -> "east";
+    BlockFace.WEST -> "west";
+    BlockFace.UP -> "up";
+    BlockFace.DOWN -> "down";
+    else -> "?";
+}
 
 @CommandAlias("redstore")
 @Description("A command to interface with RedstORE")
@@ -15,7 +36,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     @Default
     @CatchUnknown
     @Subcommand("help")
-    @CommandCompletion("connect|disconnect|version|help")
+    @CommandCompletion("connect|disconnect|query|version|help")
     fun help(p: Player, @Optional command: String?) {
         if (command == null || command == "all") {
             p.sendMessage("Available RedstORE commands:");
@@ -24,6 +45,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage("   Use '/redstore help connect' for info on params.");
             p.sendMessage("/redstore disconnect");
             p.sendMessage("   Disconnect the RedstORE connection at your location.");
+            p.sendMessage("/redstore query");
+            p.sendMessage("   Get info about the connection at your location.");
             p.sendMessage("/redstore version");
             p.sendMessage("   Print version string.");
             p.sendMessage("/redstore help <subcommand>");
@@ -44,6 +67,9 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         } else if (command == "disconnect") {
             p.sendMessage("/redstore disconnect");
             p.sendMessage("   Disconnect the RedstORE connection at your location.");
+        } else if (command == "query") {
+            p.sendMessage("/redstore query");
+            p.sendMessage("   Get info about the connection at your location.");
         } else if (command == "version") {
             p.sendMessage("/redstore version");
             p.sendMessage("   Print version string.");
@@ -57,7 +83,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     }
 
     @Subcommand("version")
-    fun info(player: Player) {
+    fun version(player: Player) {
         player.sendMessage("Hi! I'm RedstORE ${redstore.description.version}");
     }
 
@@ -95,18 +121,13 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             val k = parts[0];
             val v = parts[1];
             if (k == "dir") {
-                direction = when (v) {
-                    "north" -> BlockFace.NORTH;
-                    "south" -> BlockFace.SOUTH;
-                    "east" -> BlockFace.EAST;
-                    "west" -> BlockFace.WEST;
-                    "up" -> BlockFace.UP;
-                    "down" -> BlockFace.DOWN;
-                    else -> {
-                        player.sendMessage("Unknown direction: ${v}");
-                        return@connect;
-                    }
+                val dir = parseDirection(v);
+                if (dir == null) {
+                    player.sendMessage("Unknown direction: ${v}");
+                    return;
                 }
+
+                direction = dir;
             } else if (k == "addr") {
                 addressBits = v.toInt();
                 if (addressBits < 1 || addressBits > 16) {
@@ -151,5 +172,32 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             player.sendMessage("! No connection at " +
                 "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
         }
+    }
+
+    @Subcommand("query")
+    fun query(player: Player) {
+        val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
+        val meta = redstore.db?.getConnectionMetaWithOrigin(block);
+        if (meta == null) {
+            player.sendMessage("! No connection at " +
+                "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
+            return;
+        }
+
+        val props = redstore.db?.getConnection(meta.uuid)?.let { it.second };
+        if (props == null) {
+            player.sendMessage("! Connection ${meta.uuid} exists but seems broken");
+            return;
+        }
+
+        val owner = Bukkit.getOfflinePlayer(meta.playerUUID);
+
+        player.sendMessage("Connection ${meta.uuid}:");
+        player.sendMessage("  owner: ${owner.getName()}");
+        player.sendMessage("  mode: ${props.mode.toString()}");
+        player.sendMessage("  dir=${stringifyDirection(props.direction)}");
+        player.sendMessage("  addr=${props.addressBits}");
+        player.sendMessage("  ws=${props.wordSize}");
+        player.sendMessage("  ps=${props.pageSize}");
     }
 }

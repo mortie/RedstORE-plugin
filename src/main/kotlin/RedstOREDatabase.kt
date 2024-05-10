@@ -47,6 +47,75 @@ class RedstOREDatabase(
         }
     }
 
+    private fun parseConnection(
+        it: ResultRow,
+    ): Pair<ConnectionMeta, ConnectionProperties>? {
+        val worldUUID = it[Connections.worldUUID];
+        val world = Bukkit.getWorld(worldUUID);
+        if (world == null) {
+            logger.warning("Connection at non-existent world ${worldUUID}");
+            return null;
+        }
+
+        val meta = ConnectionMeta(
+            uuid = it[Connections.uuid],
+            playerUUID = it[Connections.playerUUID],
+        );
+
+        val direction = when (it[Connections.direction]) {
+            "N" -> BlockFace.NORTH;
+            "S" -> BlockFace.SOUTH;
+            "E" -> BlockFace.EAST;
+            "W" -> BlockFace.WEST;
+            "U" -> BlockFace.UP;
+            "D" -> BlockFace.DOWN;
+            else -> null;
+        };
+        if (direction == null) {
+            logger.warning(
+                "Connection with unrecognized direction " +
+                "${it[Connections.direction]}");
+            return null;
+        }
+
+        val mode = when (it[Connections.mode]) {
+            'R' -> ConnMode.READ;
+            'W' -> ConnMode.WRITE;
+            else -> null;
+        };
+        if (mode == null) {
+            logger.warning(
+                "Connection with unrecognized mode " +
+                "${it[Connections.mode]}");
+            return null;
+        }
+
+        val props = ConnectionProperties(
+            origin = world.getBlockAt(
+                it[Connections.originX],
+                it[Connections.originY],
+                it[Connections.originZ]),
+            direction = direction,
+            addressBits = it[Connections.addressBits],
+            wordSize = it[Connections.wordSize],
+            pageSize = it[Connections.pageSize],
+            mode = mode,
+            file = File(it[Connections.filePath]),
+        );
+
+        return Pair(meta, props);
+    }
+
+    fun getConnection(uuid: UUID): Pair<ConnectionMeta, ConnectionProperties>? {
+        return transaction(db) {
+            Connections.select {
+                Connections.uuid eq uuid
+            }.firstOrNull()?.let {
+                parseConnection(it);
+            }
+        }
+    }
+
     fun getConnectionMetaWithOrigin(block: Block): ConnectionMeta? {
         val worldUUID = block.getWorld().getUID();
         return transaction(db) {
@@ -103,60 +172,9 @@ class RedstOREDatabase(
     fun getConnections(cb: (ConnectionMeta, ConnectionProperties) -> Unit) {
         transaction(db) {
             Connections.selectAll().map {
-                val worldUUID = it[Connections.worldUUID];
-                val world = Bukkit.getWorld(worldUUID);
-                if (world == null) {
-                    logger.warning("Connection at non-existent world ${worldUUID}");
-                    return@map;
-                }
-
-                val meta = ConnectionMeta(
-                    uuid = it[Connections.uuid],
-                    playerUUID = it[Connections.playerUUID],
-                );
-
-                val direction = when (it[Connections.direction]) {
-                    "N" -> BlockFace.NORTH;
-                    "S" -> BlockFace.SOUTH;
-                    "E" -> BlockFace.EAST;
-                    "W" -> BlockFace.WEST;
-                    "U" -> BlockFace.UP;
-                    "D" -> BlockFace.DOWN;
-                    else -> null;
+                parseConnection(it)?.let { (meta, props) ->
+                    cb(meta, props);
                 };
-                if (direction == null) {
-                    logger.warning(
-                        "Connection with unrecognized direction " +
-                        "${it[Connections.direction]}");
-                    return@map;
-                }
-
-                val mode = when (it[Connections.mode]) {
-                    'R' -> ConnMode.READ;
-                    'W' -> ConnMode.WRITE;
-                    else -> null;
-                };
-                if (mode == null) {
-                    logger.warning(
-                        "Connection with unrecognized mode " +
-                        "${it[Connections.mode]}");
-                    return@map;
-                }
-
-                val props = ConnectionProperties(
-                    origin = world.getBlockAt(
-                        it[Connections.originX],
-                        it[Connections.originY],
-                        it[Connections.originZ]),
-                    direction = direction,
-                    addressBits = it[Connections.addressBits],
-                    wordSize = it[Connections.wordSize],
-                    pageSize = it[Connections.pageSize],
-                    mode = mode,
-                    file = File(it[Connections.filePath]),
-                );
-
-                cb(meta, props);
             }
         }
     }
