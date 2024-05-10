@@ -90,10 +90,14 @@ class RedstORE: JavaPlugin() {
         logger.info("Adding connection at " +
             "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
 
-        val uuid = db!!.addConnection(playerUUID, props);
-
+        // Do this first, so that if it throws an exception
+        // (permission issue for example)
+        // we don't add anything to the database
         val conn = StorageConnection(
             materials!!, logger, this, props);
+
+        val uuid = db!!.addConnection(playerUUID, props);
+
         val task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
         conn.task = task;
         connections.set(uuid, conn);
