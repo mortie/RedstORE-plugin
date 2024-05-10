@@ -33,8 +33,7 @@ data class ConnectionProperties(
     val wordSize: Int,
     val pageSize: Int,
     val mode: ConnMode,
-
-    val file: File,
+    val file: String,
 ) {}
 
 data class TxnState(
@@ -102,7 +101,14 @@ class StorageConnection(
     var transaction: TxnState? = null;
 
     init {
-        file = RandomAccessFile(props.file, when (props.mode) {
+        val path = redstore.basePath!!.resolve(props.file).normalize();
+        if (!path.startsWith(redstore.basePath)) {
+            throw Exception("Bad path name");
+        }
+
+        path.getParent()?.toFile()?.mkdirs();
+
+        file = RandomAccessFile(path.toFile(), when (props.mode) {
             ConnMode.READ -> "r";
             ConnMode.WRITE -> "rw";
         });

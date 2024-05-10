@@ -100,7 +100,7 @@ class RedstOREDatabase(
             wordSize = it[Connections.wordSize],
             pageSize = it[Connections.pageSize],
             mode = mode,
-            file = File(it[Connections.filePath]),
+            file = it[Connections.filePath],
         );
 
         return Pair(meta, props);

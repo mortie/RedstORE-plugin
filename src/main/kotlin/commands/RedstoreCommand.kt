@@ -95,6 +95,14 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         path: String,
         params: Array<String>,
     ) {
+        // This is just for nicer error messages,
+        // the check happens in RedstOREDatabase as well
+        val fullPath = redstore.basePath!!.resolve(path).normalize();
+        if (!(fullPath.startsWith(redstore.basePath!!))) {
+            player.sendMessage("Illegal path: '${path}'");
+            return;
+        }
+
         @Suppress("NAME_SHADOWING")
         val mode = when (mode) {
             "read" -> ConnMode.READ;
@@ -160,8 +168,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             addressBits = addressBits,
             wordSize = wordSize,
             pageSize = pageSize,
-
-            file = File(path),
+            file = path,
         ));
     }
 

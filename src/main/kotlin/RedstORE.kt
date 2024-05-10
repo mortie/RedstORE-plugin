@@ -7,6 +7,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Material
 import co.aikar.commands.PaperCommandManager
 import java.util.UUID
+import java.nio.file.Path
 import commands.RedstoreCommand
 import redstore.RedstOREDatabase
 import redstore.checkPlayerPermission
@@ -15,10 +16,24 @@ class RedstORE: JavaPlugin() {
     val connections = HashMap<UUID, StorageConnection>();
     var materials: Materials? = null;
     public var db: RedstOREDatabase? = null;
+    public var basePath: Path? = null;
 
     override fun onEnable() {
-        this.dataFolder.mkdirs();
-        val dbFile = this.dataFolder.resolve("redstore.db").toString();
+        saveDefaultConfig();
+
+        basePath = getConfig().get("base-path")?.let {
+            Path.of(it.toString()).normalize();
+        }
+        if (basePath == null) {
+            logger.severe("config.yml missing 'base-path'!");
+            setEnabled(false);
+            return;
+        }
+
+        logger.info("Using base path: '${basePath}'");
+
+        dataFolder.mkdirs();
+        val dbFile = dataFolder.resolve("redstore.db").toString();
         logger.info("Opening DB file '${dbFile}'...");
         db = RedstOREDatabase(dbFile, logger);
 
@@ -37,16 +52,23 @@ class RedstORE: JavaPlugin() {
 
         // Add all existing connections
         db!!.getConnections { meta, props ->
-            val conn = StorageConnection(
-                materials!!, logger, this, props);
+            val conn: StorageConnection;
+            try {
+                conn = StorageConnection(
+                    materials!!, logger, this, props);
+            } catch (ex: Exception) {
+                logger.info("Failed to load connection ${meta.uuid}: ${ex}");
+                return@getConnections;
+            }
+
             val task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
             conn.task = task;
             connections.set(meta.uuid, conn);
             val origin = props.origin;
             logger.info(
                 "Loaded connection ${meta.uuid} at " +
-                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})@" +
-                "${origin.getWorld().getName()}");
+                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})" +
+                " @ ${origin.getWorld().getName()}");
         }
 
         logger.info("RedstORE enabled!");
@@ -109,15 +131,8 @@ class RedstORE: JavaPlugin() {
             return false;
         }
 
-        val conn = connections.get(meta.uuid);
-        if (conn == null) {
-            return false;
-        }
-
         logger.info("Removing connection at " +
             "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
-        conn.close();
-        connections.remove(meta.uuid);
         db!!.removeConnection(meta.uuid);
 
         val player = Bukkit.getPlayer(meta.playerUUID);
@@ -125,6 +140,15 @@ class RedstORE: JavaPlugin() {
             player.sendMessage("Removed connection at " +
                 "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
         }
+
+        val conn = connections.get(meta.uuid);
+        if (conn == null) {
+            logger.warning("Connection exists in database but not in world!");
+            return true;
+        }
+
+        conn.close();
+        connections.remove(meta.uuid);
         return true;
     }
 }
