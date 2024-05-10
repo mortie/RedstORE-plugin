@@ -1,3 +1,5 @@
+package redstore
+
 import org.bukkit.block.Block
 import org.bukkit.block.BlockFace
 import org.bukkit.Material
@@ -5,6 +7,7 @@ import org.bukkit.scheduler.BukkitTask
 import java.util.logging.Logger
 import java.util.logging.Level
 import java.util.UUID
+import java.io.File
 import java.io.RandomAccessFile
 import java.lang.Math
 
@@ -24,13 +27,12 @@ enum class ConnMode {
 data class ConnectionProperties(
     val origin: Block,
     val direction: BlockFace,
-    val facing: BlockFace,
     val addressBits: Int,
     val wordSize: Int,
-    val pageSizeWords: Int,
+    val pageSize: Int,
     val mode: ConnMode,
 
-    val file: RandomAccessFile,
+    val file: File,
 ) {}
 
 data class TxnState(
@@ -47,7 +49,6 @@ class StorageConnection(
     private val logger: Logger,
     private val redstore: RedstORE,
     public val props: ConnectionProperties,
-    public val playerId: UUID,
 ): Runnable {
     public var task: BukkitTask? = null;
 
@@ -56,12 +57,18 @@ class StorageConnection(
     val addressBlocksStart: Block;
     val dataBlocksStart: Block;
     val pageSizeBytes: Int;
+    val file: RandomAccessFile;
 
     var transaction: TxnState? = null;
 
     init {
+        file = RandomAccessFile(props.file, when (props.mode) {
+            ConnMode.READ -> "r";
+            ConnMode.WRITE -> "rw";
+        });
+
         pageSizeBytes = Math.ceil(
-            (props.pageSizeWords.toDouble() * props.wordSize.toDouble()) /
+            (props.pageSize.toDouble() * props.wordSize.toDouble()) /
             8.toDouble()).toInt();
 
         var block = props.origin;
@@ -92,7 +99,7 @@ class StorageConnection(
     fun close() {
         task?.cancel();
         transaction = null;
-        props.file.close();
+        file.close();
     }
 
     fun readBlockBits(start: Block, count: Int): Int {
@@ -134,8 +141,8 @@ class StorageConnection(
 
             var txn = transaction!!;
             if (props.mode == ConnMode.READ) {
-                props.file.seek(address.toLong() * pageSizeBytes);
-                props.file.read(txn.page);
+                file.seek(address.toLong() * pageSizeBytes);
+                file.read(txn.page);
             }
 
             activateBlock.setType(materials.onBlock);
@@ -216,12 +223,12 @@ class StorageConnection(
 
         if (props.mode == ConnMode.WRITE) {
             val length = (txn.address.toLong() + 1L) * pageSizeBytes;
-            if (props.file.length() < length) {
-                props.file.setLength(length);
+            if (file.length() < length) {
+                file.setLength(length);
             }
 
-            props.file.seek(txn.address.toLong() * pageSizeBytes);
-            props.file.write(txn.page);
+            file.seek(txn.address.toLong() * pageSizeBytes);
+            file.write(txn.page);
         }
     }
 
