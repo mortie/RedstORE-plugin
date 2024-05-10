@@ -5,7 +5,6 @@ import org.bukkit.block.BlockFace
 import org.bukkit.Material
 import org.bukkit.scheduler.BukkitTask
 import java.util.logging.Logger
-import java.util.logging.Level
 import java.util.UUID
 import java.io.File
 import java.io.RandomAccessFile
@@ -129,7 +128,7 @@ class StorageConnection(
 
             val address = readBlockBits(addressBlocksStart, props.addressBits);
 
-            logger.log(Level.INFO, "Begin ${props.mode} txn, page ${address}");
+            logger.info("Begin ${props.mode} txn, page ${address}");
             transaction = TxnState(
                 address = address,
                 page = ByteArray(pageSizeBytes),
@@ -139,7 +138,7 @@ class StorageConnection(
                 bitPosition = 0,
             );
 
-            var txn = transaction!!;
+            val txn = transaction!!;
             if (props.mode == ConnMode.READ) {
                 file.seek(address.toLong() * pageSizeBytes);
                 file.read(txn.page);
@@ -153,7 +152,7 @@ class StorageConnection(
     }
 
     fun handleRead() {
-        var txn = transaction!!;
+        val txn = transaction!!;
 
         var block = dataBlocksStart.getRelative(props.direction, (props.wordSize - 1) * 2);
         val direction = props.direction.getOppositeFace();
@@ -178,7 +177,7 @@ class StorageConnection(
     }
 
     fun handleWrite() {
-        var txn = transaction!!;
+        val txn = transaction!!;
 
         val bits = readBlockBits(dataBlocksStart, props.wordSize);
         repeat(props.wordSize) { index ->
@@ -203,8 +202,8 @@ class StorageConnection(
     }
 
     fun endTransaction() {
-        var txn = transaction!!;
-        logger.log(Level.INFO, "End ${props.mode} txn, page ${txn.address}");
+        val txn = transaction!!;
+        logger.info("End ${props.mode} txn, page ${txn.address}");
         transaction = null;
 
         activateBlock.setType(activateMaterial);
@@ -233,7 +232,7 @@ class StorageConnection(
     }
 
     fun handleTransaction() {
-        var txn = transaction!!;
+        val txn = transaction!!;
 
         txn.timer -= 1;
         val tick = txn.timer <= 0;

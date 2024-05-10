@@ -5,21 +5,20 @@ import org.bukkit.block.Block
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import co.aikar.commands.PaperCommandManager
-import java.util.logging.Level
 import java.util.UUID
 import commands.RedstoreCommand
 import redstore.RedstOREDatabase;
 
 class RedstORE: JavaPlugin() {
-    var connections = HashMap<UUID, StorageConnection>();
+    val connections = HashMap<UUID, StorageConnection>();
     var materials: Materials? = null;
     var db: RedstOREDatabase? = null;
 
     override fun onEnable() {
         this.dataFolder.mkdirs();
         val dbFile = this.dataFolder.resolve("redstore.db").toString();
-        logger.log(Level.INFO, "Opening DB file '${dbFile}'...");
-        db = RedstOREDatabase(dbFile);
+        logger.info("Opening DB file '${dbFile}'...");
+        db = RedstOREDatabase(dbFile, logger);
 
         materials = Materials(
             origin = Material.matchMaterial("minecraft:sea_lantern")!!,
@@ -34,7 +33,17 @@ class RedstORE: JavaPlugin() {
             registerCommand(RedstoreCommand(this@RedstORE));
         }
 
-        logger.log(Level.INFO, "RedstORE enabled!");
+        // Add all existing connections
+        db!!.getConnections { meta, props ->
+            val conn = StorageConnection(
+                materials!!, logger, this, props);
+            val task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
+            conn.task = task;
+            connections.set(meta.uuid, conn);
+            logger.info("Loaded connection ${meta.uuid} at ${props.origin}");
+        }
+
+        logger.info("RedstORE enabled!");
     }
 
     override fun onDisable() {
@@ -45,21 +54,21 @@ class RedstORE: JavaPlugin() {
         connections.clear();
         db!!.close();
         db = null;
+        logger.info("RedstORE disabled!");
     }
 
     public fun addStoreConnection(playerUUID: UUID, props: ConnectionProperties) {
-        // Remove existing connection if it exists
         removeStoreConnection(props.origin);
 
         val origin = props.origin;
-        logger.log(Level.INFO, "Adding connection at " +
+        logger.info("Adding connection at " +
             "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
 
         val uuid = db!!.addConnection(playerUUID, props);
 
-        var conn = StorageConnection(
+        val conn = StorageConnection(
             materials!!, logger, this, props);
-        var task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
+        val task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
         conn.task = task;
         connections.set(uuid, conn);
     }
@@ -75,10 +84,11 @@ class RedstORE: JavaPlugin() {
             return false;
         }
 
-        logger.log(Level.INFO, "Removing connection at " +
+        logger.info("Removing connection at " +
             "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
         conn.close();
         connections.remove(meta.uuid);
+        db!!.removeConnection(meta.uuid);
 
         val player = Bukkit.getPlayer(meta.playerUUID);
         if (player != null) {
