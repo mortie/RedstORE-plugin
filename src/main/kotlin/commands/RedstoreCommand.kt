@@ -10,6 +10,7 @@ import org.bukkit.ChatColor
 import org.bukkit.entity.Player
 import org.bukkit.block.BlockFace
 import java.io.File
+import java.io.FileNotFoundException
 
 fun parseDirection(dir: String) = when (dir) {
     "north" -> BlockFace.NORTH;
@@ -243,7 +244,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         }
 
         val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
-        redstore.addStoreConnection(player, ConnectionProperties(
+        val props = ConnectionProperties(
             mode = mode,
             origin = block,
             direction = direction,
@@ -253,7 +254,13 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             pageCount = pageCount,
             latency = latency,
             file = path,
-        ));
+        );
+
+        try {
+            redstore.addStoreConnection(player, props);
+        } catch (ex: FileNotFoundException) {
+            player.sendMessage("${ChatColor.RED}Couldn't open ${path}");
+        }
     }
 
     @Subcommand("disconnect")
@@ -292,11 +299,13 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         player.sendMessage("  File: ${props.file}");
         player.sendMessage("  Latency: ${props.latency} rticks");
         player.sendMessage("  Enabled: ${meta.enabled}");
-        player.sendMessage("  dir=${stringifyDirection(props.direction)}");
-        player.sendMessage("  addr=${props.addressBits}");
-        player.sendMessage("  ws=${props.wordSize}");
-        player.sendMessage("  ps=${props.pageSize}");
-        player.sendMessage("  count=${props.pageCount}");
+        player.sendMessage(
+            "  " +
+            "dir=${stringifyDirection(props.direction)} " +
+            "addr=${props.addressBits} " +
+            "ws=${props.wordSize} " +
+            "ps=${props.pageSize} " +
+            "count=${props.pageCount}");
     }
 
     @Subcommand("list")

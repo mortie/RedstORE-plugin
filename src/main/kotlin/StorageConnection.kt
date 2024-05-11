@@ -190,11 +190,6 @@ class StorageConnection(
     }
 
     override fun run() {
-        if (props.origin.getType() != materials.originEnabled) {
-            redstore.removeStoreConnection(props.origin);
-            return;
-        }
-
         if (transaction == null) {
             val activatePowered = activateBlock.isBlockPowered();
             if (!activatePowered) {
@@ -280,6 +275,11 @@ class StorageConnection(
         val txn = transaction!!;
         logger.info("End ${props.mode} txn, page ${txn.address}");
         transaction = null;
+
+        props.origin.setType(when (enabled) {
+            true -> materials.originEnabled;
+            false -> materials.originDisabled;
+        });
 
         activateBlock.setType(activateMaterial);
 

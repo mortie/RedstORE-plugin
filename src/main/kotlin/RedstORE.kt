@@ -5,6 +5,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.Action
 import org.bukkit.block.Block
 import org.bukkit.inventory.EquipmentSlot
@@ -67,6 +68,15 @@ class RedstORE: JavaPlugin(), Listener {
                     "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
             }
         }
+    }
+
+    @EventHandler
+    fun onBlockBreak(evt: BlockBreakEvent) {
+        if (!connectionsByOrigin.contains(evt.block)) {
+            return;
+        }
+
+        removeStoreConnection(evt.block);
     }
 
     override fun onEnable() {
