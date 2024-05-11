@@ -95,7 +95,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage("${ChatColor.YELLOW}/redstore disconnect");
             p.sendMessage("   Disconnect the RedstORE connection at your location.");
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
-            p.sendMessage("   Get info about the connection at your location.");
+            p.sendMessage("   Get info about the connection you're looking at.");
             p.sendMessage("${ChatColor.YELLOW}/redstore list");
             p.sendMessage("   List your connections.");
             p.sendMessage("${ChatColor.YELLOW}/redstore version");
@@ -125,7 +125,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage("   Disconnect the RedstORE connection at your location.");
         } else if (command == "query") {
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
-            p.sendMessage("   Get info about the connection at your location.");
+            p.sendMessage("   Get info about the connection you're looking at.");
         } else if (command == "list") {
             p.sendMessage("${ChatColor.YELLOW}/redstore list");
             p.sendMessage("   List your connections.");
@@ -275,7 +275,12 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
 
     @Subcommand("query")
     fun query(player: Player) {
-        val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
+        var block = player.rayTraceBlocks(15.0)?.getHitBlock();
+        if (block == null) {
+            player.sendMessage("${ChatColor.RED}You're not looking at a block.");
+            return;
+        }
+
         val meta = redstore.db?.getConnectionMetaWithOrigin(block);
         if (meta == null) {
             player.sendMessage(
