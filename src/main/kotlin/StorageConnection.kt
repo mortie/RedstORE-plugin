@@ -16,9 +16,10 @@ import java.lang.Math
 class Materials(
     public val originEnabled: Material,
     public val originDisabled: Material,
-    public val onBlock: Material,
+    public val powered: Material,
     public val writeBit: Material,
     public val readBit: Material,
+    public val readPending: Material,
     public val addressBits: Material,
     public val dataBits: Material,
 ) {}
@@ -216,9 +217,9 @@ class StorageConnection(
             if (props.mode == ConnMode.READ && address < props.pageCount) {
                 file.seek(address.toLong() * pageSizeBytes);
                 file.read(txn.page);
+                activateBlock.setType(materials.readPending);
             }
 
-            activateBlock.setType(materials.onBlock);
             handleTransaction();
         } else {
             handleTransaction();
@@ -238,7 +239,7 @@ class StorageConnection(
 
             val byte = txn.page[txn.bytePosition].toInt();
             val bit = byte and (1 shl txn.bitPosition);
-            block.setType(if (bit == 0) materials.dataBits else materials.onBlock);
+            block.setType(if (bit == 0) materials.dataBits else materials.powered);
 
             txn.bitPosition += 1;
             if (txn.bitPosition >= 8) {
@@ -312,6 +313,8 @@ class StorageConnection(
         val tick = txn.timer <= 0;
 
         if (tick) {
+            activateBlock.setType(materials.powered);
+
             if (txn.bytePosition >= txn.page.size) {
                 endTransaction();
                 return;

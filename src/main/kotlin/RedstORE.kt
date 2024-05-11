@@ -90,10 +90,11 @@ class RedstORE: JavaPlugin(), Listener {
 
         materials = Materials(
             originEnabled = Material.matchMaterial("minecraft:sea_lantern")!!,
-            originDisabled = Material.matchMaterial("minecraft:target")!!,
-            onBlock = Material.matchMaterial("minecraft:redstone_block")!!,
+            originDisabled = Material.matchMaterial("minecraft:lapis_block")!!,
+            powered = Material.matchMaterial("minecraft:redstone_block")!!,
             writeBit = Material.matchMaterial("minecraft:red_wool")!!,
             readBit = Material.matchMaterial("minecraft:lime_wool")!!,
+            readPending = Material.matchMaterial("minecraft:green_wool")!!,
             addressBits = Material.matchMaterial("minecraft:blue_wool")!!,
             dataBits = Material.matchMaterial("minecraft:brown_wool")!!,
         )

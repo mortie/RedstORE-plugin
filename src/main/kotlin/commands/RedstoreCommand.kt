@@ -291,6 +291,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         player.sendMessage("  Mode: ${props.mode.toString()}");
         player.sendMessage("  File: ${props.file}");
         player.sendMessage("  Latency: ${props.latency} rticks");
+        player.sendMessage("  Enabled: ${meta.enabled}");
         player.sendMessage("  dir=${stringifyDirection(props.direction)}");
         player.sendMessage("  addr=${props.addressBits}");
         player.sendMessage("  ws=${props.wordSize}");
