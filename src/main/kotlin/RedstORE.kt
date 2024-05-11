@@ -88,6 +88,10 @@ class RedstORE: JavaPlugin(), Listener {
             return;
         }
 
+        if (evt.isBlockInHand()) {
+            return;
+        }
+
         val conn = connectionsByOrigin.get(evt.getClickedBlock());
         if (conn == null) {
             return;
@@ -111,28 +115,29 @@ class RedstORE: JavaPlugin(), Listener {
 
         conn.setEnabled(newEnabled);
         db!!.setConnectionEnabled(meta.uuid, newEnabled);
+        val info = "${conn.props.mode} ${conn.props.file}"
 
         if (newEnabled) {
             val task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
             conn.task = task;
             evt.player.sendMessage(
-                "${ChatColor.GREEN}Enabled RedstORE connection at " +
-                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
+                "${ChatColor.GREEN}Enabled RedstORE connection: ${info} ");
             if (owner != null && owner != evt.player) {
                 owner.sendMessage(
                     "${ChatColor.GREEN}Your RedstORE connection was enabled at " +
-                    "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
+                    "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()}): " +
+                    "${info}");
             }
         } else {
             conn.task?.cancel();
             conn.task = null;
             evt.player.sendMessage(
-                "${ChatColor.YELLOW}Disabled RedstORE connection at " +
-                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
+                "${ChatColor.YELLOW}Disabled RedstORE connection: ${info}");
             if (owner != null && owner != evt.player) {
                 owner.sendMessage(
                     "${ChatColor.YELLOW}Your RedstORE connection was disabled at " +
-                    "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
+                    "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()}): " +
+                    "${info}");
             }
         }
     }
