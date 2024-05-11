@@ -15,6 +15,7 @@ import redstore.ConnMode
 
 object Connections: Table("connections") {
     val uuid = uuid("uuid").uniqueIndex();
+    val mode = char("mode");
     val worldUUID = uuid("world_uuid");
     val originX = integer("origin_x");
     val originY = integer("origin_y");
@@ -23,7 +24,8 @@ object Connections: Table("connections") {
     val addressBits = integer("address_bits");
     val wordSize = integer("word_size");
     val pageSize = integer("page_size");
-    val mode = char("mode");
+    val pageCount = integer("page_count");
+    val latency = integer("latency");
     val filePath = text("file_path");
     val playerUUID = uuid("player_uuid");
     override val primaryKey = PrimaryKey(uuid);
@@ -50,6 +52,18 @@ class RedstOREDatabase(
     private fun parseConnection(
         it: ResultRow,
     ): Pair<ConnectionMeta, ConnectionProperties>? {
+        val mode = when (it[Connections.mode]) {
+            'R' -> ConnMode.READ;
+            'W' -> ConnMode.WRITE;
+            else -> null;
+        };
+        if (mode == null) {
+            logger.warning(
+                "Connection with unrecognized mode " +
+                "${it[Connections.mode]}");
+            return null;
+        }
+
         val worldUUID = it[Connections.worldUUID];
         val world = Bukkit.getWorld(worldUUID);
         if (world == null) {
@@ -78,19 +92,8 @@ class RedstOREDatabase(
             return null;
         }
 
-        val mode = when (it[Connections.mode]) {
-            'R' -> ConnMode.READ;
-            'W' -> ConnMode.WRITE;
-            else -> null;
-        };
-        if (mode == null) {
-            logger.warning(
-                "Connection with unrecognized mode " +
-                "${it[Connections.mode]}");
-            return null;
-        }
-
         val props = ConnectionProperties(
+            mode = mode,
             origin = world.getBlockAt(
                 it[Connections.originX],
                 it[Connections.originY],
@@ -99,7 +102,8 @@ class RedstOREDatabase(
             addressBits = it[Connections.addressBits],
             wordSize = it[Connections.wordSize],
             pageSize = it[Connections.pageSize],
-            mode = mode,
+            pageCount = it[Connections.pageCount],
+            latency = it[Connections.latency],
             file = it[Connections.filePath],
         );
 
@@ -136,6 +140,10 @@ class RedstOREDatabase(
         transaction(db) {
             Connections.insert {
                 it[Connections.uuid] = uuid;
+                it[Connections.mode] = when (props.mode) {
+                    ConnMode.READ -> 'R';
+                    ConnMode.WRITE -> 'W';
+                };
                 it[Connections.worldUUID] = props.origin.getWorld().getUID();
                 it[Connections.originX] = props.origin.getX();
                 it[Connections.originY] = props.origin.getY();
@@ -152,10 +160,8 @@ class RedstOREDatabase(
                 it[Connections.addressBits] = props.addressBits;
                 it[Connections.wordSize] = props.wordSize;
                 it[Connections.pageSize] = props.pageSize;
-                it[Connections.mode] = when (props.mode) {
-                    ConnMode.READ -> 'R';
-                    ConnMode.WRITE -> 'W';
-                };
+                it[Connections.pageCount] = props.pageCount;
+                it[Connections.latency] = props.latency;
                 it[Connections.filePath] = props.file.toString();
                 it[Connections.playerUUID] = playerUUID;
             }
@@ -175,6 +181,22 @@ class RedstOREDatabase(
                 parseConnection(it)?.let { (meta, props) ->
                     cb(meta, props);
                 };
+            }
+        }
+    }
+
+    fun getPlayerConnections(
+        playerUUID: UUID,
+        cb: (ConnectionMeta, ConnectionProperties) -> Unit,
+    ) {
+        transaction(db) {
+            Connections.select {
+                Connections.playerUUID eq playerUUID
+            }.map {
+                val pair = parseConnection(it);
+                if (pair != null) {
+                    cb(pair.first, pair.second);
+                }
             }
         }
     }

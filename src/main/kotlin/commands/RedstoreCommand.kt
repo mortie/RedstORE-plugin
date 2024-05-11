@@ -31,13 +31,58 @@ fun stringifyDirection(dir: BlockFace) = when (dir) {
     else -> "?";
 }
 
+fun baseLatencyFromWordCount(wc: Int): Int {
+    if (wc <= 256) {
+        return 24;
+    } else if (wc <= 512) {
+        return 26;
+    } else if (wc <= 1_024) {
+        return 28;
+    } else if (wc <= 2_048) {
+        return 30;
+    } else if (wc <= 4_096) {
+        return 32;
+    } else if (wc <= 8_192) {
+        return 34;
+    } else if (wc <= 16_384) {
+        return 36;
+    } else if (wc <= 32_768) {
+        return 38;
+    } else if (wc <= 65_536) {
+        return 40;
+    } else if (wc <= 131_072) {
+        return 42;
+    } else if (wc <= 262_144) {
+        return 44;
+    } else if (wc <= 524_288) {
+        return 46;
+    } else {
+        return 48;
+    }
+}
+
+fun latencyFromWordSize(wordSize: Int): Int {
+    if (wordSize <= 8) {
+        return 0;
+    } else if (wordSize <= 16) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+
+fun calculateLatency(pageCount: Int, pageSize: Int, wordSize: Int): Int {
+    return baseLatencyFromWordCount(pageCount * pageSize) +
+        latencyFromWordSize(wordSize);
+}
+
 @CommandAlias("redstore")
 @Description("A command to interface with RedstORE")
 class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     @Default
     @CatchUnknown
     @Subcommand("help")
-    @CommandCompletion("connect|disconnect|query|version|help")
+    @CommandCompletion("connect|disconnect|query|list|version|help")
     fun help(p: Player, @Optional command: String?) {
         if (command == null || command == "all") {
             p.sendMessage("${ChatColor.GREEN}Available RedstORE commands:");
@@ -50,6 +95,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage("   Disconnect the RedstORE connection at your location.");
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
             p.sendMessage("   Get info about the connection at your location.");
+            p.sendMessage("${ChatColor.YELLOW}/redstore list");
+            p.sendMessage("   List your connections.");
             p.sendMessage("${ChatColor.YELLOW}/redstore version");
             p.sendMessage("   Print version string.");
             p.sendMessage("${ChatColor.YELLOW}/redstore help <subcommand>");
@@ -69,12 +116,18 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage("       Default: 8");
             p.sendMessage("   ps=<N>: Set the number of words in a page.");
             p.sendMessage("       Default: 8");
+            p.sendMessage("   count=<N>: Set the number of accessible pages in the file.");
+            p.sendMessage("       This dictates the latency of the connection.");
+            p.sendMessage("       Default: 2^addr");
         } else if (command == "disconnect") {
             p.sendMessage("${ChatColor.YELLOW}/redstore disconnect");
             p.sendMessage("   Disconnect the RedstORE connection at your location.");
         } else if (command == "query") {
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
             p.sendMessage("   Get info about the connection at your location.");
+        } else if (command == "list") {
+            p.sendMessage("${ChatColor.YELLOW}/redstore list");
+            p.sendMessage("   List your connections.");
         } else if (command == "version") {
             p.sendMessage("${ChatColor.YELLOW}/redstore version");
             p.sendMessage("   Print version string.");
@@ -86,11 +139,6 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage("${ChatColor.RED}Unknown subcommand: ${command}.");
             p.sendMessage("${ChatColor.RED}Use '/redstone help' for help.");
         }
-    }
-
-    @Subcommand("version")
-    fun version(player: Player) {
-        player.sendMessage("Hi! I'm RedstORE ${redstore.description.version}");
     }
 
     @Subcommand("connect")
@@ -125,6 +173,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         var addressBits = 4;
         var wordSize = 8;
         var pageSize = 8;
+        var pageCount = -1;
 
         for (param in params) {
             val parts = param.split("=", limit=2);
@@ -165,10 +214,32 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
                         "${ChatColor.RED}Invalid page size: ${pageSize}");
                     return;
                 }
+            } else if (k == "count") {
+                pageCount = v.toInt();
+                if (pageCount < 1) {
+                    player.sendMessage(
+                        "${ChatColor.RED}Invalid page count: ${pageCount}");
+                    return;
+                }
             } else {
                 player.sendMessage("${ChatColor.RED}Unknown parameter: '${k}'");
                 return;
             }
+        }
+
+        val maxPageCount = Math.pow(2.0, addressBits.toDouble()).toInt();
+        if (pageCount < 0) {
+            pageCount = maxPageCount;
+        } else if (pageCount > maxPageCount) {
+            player.sendMessage(
+                "${ChatColor.YELLOW}Page count ${pageCount} is too big for " +
+                "a ${addressBits} bit address, reducing to ${maxPageCount}");
+            pageCount = maxPageCount;
+        }
+
+        val latency = when (mode) {
+            ConnMode.READ -> calculateLatency(pageCount, pageSize, wordSize);
+            ConnMode.WRITE -> 0;
         }
 
         val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
@@ -179,6 +250,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             addressBits = addressBits,
             wordSize = wordSize,
             pageSize = pageSize,
+            pageCount = pageCount,
+            latency = latency,
             file = path,
         ));
     }
@@ -214,11 +287,30 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         val owner = Bukkit.getOfflinePlayer(meta.playerUUID);
 
         player.sendMessage("${ChatColor.GREEN}Connection ${meta.uuid}:");
-        player.sendMessage("  owner: ${owner.getName()}");
-        player.sendMessage("  mode: ${props.mode.toString()}");
+        player.sendMessage("  Owner: ${owner.getName()}");
+        player.sendMessage("  Mode: ${props.mode.toString()}");
+        player.sendMessage("  File: ${props.file}");
+        player.sendMessage("  Latency: ${props.latency} rticks");
         player.sendMessage("  dir=${stringifyDirection(props.direction)}");
         player.sendMessage("  addr=${props.addressBits}");
         player.sendMessage("  ws=${props.wordSize}");
         player.sendMessage("  ps=${props.pageSize}");
+        player.sendMessage("  count=${props.pageCount}");
+    }
+
+    @Subcommand("list")
+    fun list(player: Player) {
+        player.sendMessage("${ChatColor.GREEN}Your RedstORE connections:");
+        redstore.db!!.getPlayerConnections(player.getUniqueId()) { meta, props ->
+            val origin = props.origin;
+            player.sendMessage(
+                "  (${origin.getX()}, ${origin.getY()}, ${origin.getZ()})" +
+                " @ ${origin.getWorld().getName()}: ${props.mode} (${meta.uuid})");
+        }
+    }
+
+    @Subcommand("version")
+    fun version(player: Player) {
+        player.sendMessage("Hi! I'm RedstORE ${redstore.description.version}");
     }
 }

@@ -27,12 +27,14 @@ enum class ConnMode {
 }
 
 data class ConnectionProperties(
+    val mode: ConnMode,
     val origin: Block,
     val direction: BlockFace,
     val addressBits: Int,
     val wordSize: Int,
     val pageSize: Int,
-    val mode: ConnMode,
+    val pageCount: Int,
+    val latency: Int,
     val file: String,
 ) {}
 
@@ -179,13 +181,13 @@ class StorageConnection(
                 address = address,
                 page = ByteArray(pageSizeBytes),
 
-                timer = 0,
+                timer = props.latency * 2, // 2 redstone ticks per gamm tick
                 bytePosition = 0,
                 bitPosition = 0,
             );
 
             val txn = transaction!!;
-            if (props.mode == ConnMode.READ) {
+            if (props.mode == ConnMode.READ && address < props.pageCount) {
                 file.seek(address.toLong() * pageSizeBytes);
                 file.read(txn.page);
             }
@@ -266,7 +268,7 @@ class StorageConnection(
             block = block.getRelative(props.direction, 2);
         }
 
-        if (props.mode == ConnMode.WRITE) {
+        if (props.mode == ConnMode.WRITE && txn.address < props.pageCount) {
             val length = (txn.address.toLong() + 1L) * pageSizeBytes;
             if (file.length() < length) {
                 file.setLength(length);
