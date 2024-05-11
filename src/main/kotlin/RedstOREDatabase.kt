@@ -16,6 +16,7 @@ import redstore.ConnMode
 object Connections: Table("connections") {
     val uuid = uuid("uuid").uniqueIndex();
     val mode = char("mode");
+    val enabled = bool("enabled");
     val worldUUID = uuid("world_uuid");
     val originX = integer("origin_x");
     val originY = integer("origin_y");
@@ -34,6 +35,7 @@ object Connections: Table("connections") {
 data class ConnectionMeta(
     val uuid: UUID,
     val playerUUID: UUID,
+    val enabled: Boolean,
 )
 
 class RedstOREDatabase(
@@ -74,6 +76,7 @@ class RedstOREDatabase(
         val meta = ConnectionMeta(
             uuid = it[Connections.uuid],
             playerUUID = it[Connections.playerUUID],
+            enabled = it[Connections.enabled],
         );
 
         val direction = when (it[Connections.direction]) {
@@ -131,11 +134,12 @@ class RedstOREDatabase(
             }.firstOrNull()?.let {ConnectionMeta(
                 uuid = it[Connections.uuid],
                 playerUUID = it[Connections.playerUUID],
+                enabled = it[Connections.enabled],
             )};
         }
     }
 
-    fun addConnection(playerUUID: UUID, props: ConnectionProperties): UUID {
+    fun addConnection(playerUUID: UUID, enabled: Boolean, props: ConnectionProperties): UUID {
         val uuid = UUID.randomUUID();
         transaction(db) {
             Connections.insert {
@@ -144,6 +148,7 @@ class RedstOREDatabase(
                     ConnMode.READ -> 'R';
                     ConnMode.WRITE -> 'W';
                 };
+                it[Connections.enabled] = enabled;
                 it[Connections.worldUUID] = props.origin.getWorld().getUID();
                 it[Connections.originX] = props.origin.getX();
                 it[Connections.originY] = props.origin.getY();
@@ -172,6 +177,14 @@ class RedstOREDatabase(
     fun removeConnection(uuid: UUID) {
         transaction(db) {
             Connections.deleteWhere { Connections.uuid eq uuid };
+        }
+    }
+
+    fun setConnectionEnabled(uuid: UUID, enabled: Boolean) {
+        transaction(db) {
+            Connections.update({ Connections.uuid eq uuid }) {
+                it[Connections.enabled] = enabled;
+            }
         }
     }
 

@@ -14,7 +14,8 @@ import java.io.RandomAccessFile
 import java.lang.Math
 
 class Materials(
-    public val origin: Material,
+    public val originEnabled: Material,
+    public val originDisabled: Material,
     public val onBlock: Material,
     public val writeBit: Material,
     public val readBit: Material,
@@ -89,6 +90,7 @@ class StorageConnection(
     private val materials: Materials,
     private val logger: Logger,
     private val redstore: RedstORE,
+    private var enabled: Boolean,
     public val props: ConnectionProperties,
 ): Runnable {
     public var task: BukkitTask? = null;
@@ -120,7 +122,10 @@ class StorageConnection(
             8.toDouble()).toInt();
 
         var block = props.origin;
-        block.setType(materials.origin);
+        block.setType(when (enabled) {
+            true -> materials.originEnabled;
+            false -> materials.originDisabled;
+        });
 
         block = block.getRelative(props.direction, 2);
         activateMaterial = when (props.mode) {
@@ -162,8 +167,29 @@ class StorageConnection(
         return num;
     }
 
+    fun isEnabled(): Boolean {
+        return enabled;
+    }
+
+    fun setEnabled(newEnabled: Boolean) {
+        if (newEnabled == enabled) {
+            return;
+        }
+
+        enabled = newEnabled;
+
+        if (transaction != null) {
+            endTransaction();
+        }
+
+        props.origin.setType(when (enabled) {
+            true -> materials.originEnabled;
+            false -> materials.originDisabled;
+        });
+    }
+
     override fun run() {
-        if (props.origin.getType() != materials.origin) {
+        if (props.origin.getType() != materials.originEnabled) {
             redstore.removeStoreConnection(props.origin);
             return;
         }
