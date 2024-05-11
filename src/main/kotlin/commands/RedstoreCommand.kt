@@ -90,52 +90,51 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(
                 "${ChatColor.YELLOW}/redstore connect " +
                 "<read|write> <file> <params...>");
-            p.sendMessage("   Create a new RedstORE connection at your location.");
-            p.sendMessage("   Use '/redstore help connect' for info on params.");
+            p.sendMessage(" Create a new RedstORE connection at your location.");
+            p.sendMessage(" Use '/redstore help connect' for info on params.");
             p.sendMessage("${ChatColor.YELLOW}/redstore disconnect");
-            p.sendMessage("   Disconnect the RedstORE connection at your location.");
+            p.sendMessage(" Disconnect the RedstORE connection at your location.");
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
-            p.sendMessage("   Get info about the connection you're looking at.");
+            p.sendMessage(" Get info about the connection you're looking at.");
             p.sendMessage("${ChatColor.YELLOW}/redstore list");
-            p.sendMessage("   List your connections.");
+            p.sendMessage(" List your connections.");
             p.sendMessage("${ChatColor.YELLOW}/redstore version");
-            p.sendMessage("   Print version string.");
+            p.sendMessage(" Print version string.");
             p.sendMessage("${ChatColor.YELLOW}/redstore help <subcommand>");
-            p.sendMessage("   Print this help text, or get help with a subcommand.");
+            p.sendMessage(" Print this help text, or get help with a subcommand.");
         } else if (command == "connect") {
             p.sendMessage(
                 "${ChatColor.YELLOW}/redstore connect " +
                 "<read|write> <file> <params...>");
-            p.sendMessage("   Create a new RedstORE connection at your location.");
-            p.sendMessage("   Available parameters:");
-            p.sendMessage("   dir=<direction>: Set direction. One of:");
-            p.sendMessage("       north, south, east, west, up, down");
-            p.sendMessage("       Default: determined by camera direction");
-            p.sendMessage("   addr=<N>: Set the number of address bits.");
-            p.sendMessage("       Default: 4");
-            p.sendMessage("   ws=<N>: Set the number of bits in a word.");
-            p.sendMessage("       Default: 8");
-            p.sendMessage("   ps=<N>: Set the number of words in a page.");
-            p.sendMessage("       Default: 8");
-            p.sendMessage("   count=<N>: Set the number of accessible pages in the file.");
-            p.sendMessage("       This dictates the latency of the connection.");
-            p.sendMessage("       Default: 2^addr");
+            p.sendMessage(" Create a new RedstORE connection at your location.");
+            p.sendMessage(" Available parameters:");
+            p.sendMessage(" dir=<direction>: Set direction. One of:");
+            p.sendMessage("    north, south, east, west, up, down");
+            p.sendMessage("    Default: determined by camera direction");
+            p.sendMessage(" addr=<N>: Set the number of address bits.");
+            p.sendMessage("    Default: 4");
+            p.sendMessage(" ws=<N>: Set the number of bits in a word.");
+            p.sendMessage("    Default: 8");
+            p.sendMessage(" ps=<N>: Set the number of words in a page.");
+            p.sendMessage("    Default: 8");
+            p.sendMessage(" count=<N>: Set the number of accessible pages in the file.");
+            p.sendMessage("    This dictates the latency of the connection.");
+            p.sendMessage("    Default: 2^addr");
         } else if (command == "disconnect") {
             p.sendMessage("${ChatColor.YELLOW}/redstore disconnect");
-            p.sendMessage("   Disconnect the RedstORE connection at your location.");
+            p.sendMessage(" Disconnect the RedstORE connection at your location.");
         } else if (command == "query") {
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
-            p.sendMessage("   Get info about the connection you're looking at.");
+            p.sendMessage(" Get info about the connection you're looking at.");
         } else if (command == "list") {
             p.sendMessage("${ChatColor.YELLOW}/redstore list");
-            p.sendMessage("   List your connections.");
+            p.sendMessage(" List your connections.");
         } else if (command == "version") {
             p.sendMessage("${ChatColor.YELLOW}/redstore version");
-            p.sendMessage("   Print version string.");
+            p.sendMessage(" Print version string.");
         } else if (command == "help") {
             p.sendMessage("${ChatColor.YELLOW}/redstore help <subcommand>");
-            p.sendMessage(
-                "   Print general help text, or get help with a subcommand.");
+            p.sendMessage(" Print general help text, or get help with a subcommand.");
         } else {
             p.sendMessage("${ChatColor.RED}Unknown subcommand: ${command}.");
             p.sendMessage("${ChatColor.RED}Use '/redstone help' for help.");
