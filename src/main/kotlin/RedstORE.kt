@@ -9,6 +9,7 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.Action
 import org.bukkit.block.Block
 import org.bukkit.inventory.EquipmentSlot
+import org.bukkit.ChatColor
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import co.aikar.commands.PaperCommandManager
@@ -16,7 +17,59 @@ import java.util.UUID
 import java.nio.file.Path
 import commands.RedstoreCommand
 import redstore.RedstOREDatabase
+import redstore.ConnMode
 import redstore.checkPlayerPermission
+
+fun canPlayerEnabledConnection(
+    db: RedstOREDatabase,
+    player: UUID,
+    props: ConnectionProperties,
+): Boolean {
+    data class FileStatus(
+        var readers: Int,
+        var writers: Int,
+    ) {}
+
+    val files = HashMap<String, FileStatus>();
+    files[props.file] = when (props.mode) {
+        ConnMode.READ -> FileStatus(1, 0);
+        ConnMode.WRITE -> FileStatus(0, 1);
+    };
+
+    var openConns = 1;
+    var deny = false;
+
+    db.getPlayerConnections(player) { meta, props ->
+        if (!meta.enabled || deny) {
+            return@getPlayerConnections;
+        }
+
+        openConns += 1;
+        if (openConns > 3) {
+            deny = true;
+            return@getPlayerConnections;
+        }
+
+        var status = files[props.file];
+        if (status == null) {
+            status = when (props.mode) {
+                ConnMode.READ -> FileStatus(1, 0);
+                ConnMode.WRITE -> FileStatus(0, 1);
+            }
+            files[props.file] = status;
+        } else if (props.mode == ConnMode.READ) {
+            status.readers += 1;
+        } else if (props.mode == ConnMode.WRITE) {
+            status.writers += 1;
+        }
+
+        if (status.readers > 1 || status.writers > 1) {
+            deny = true;
+        }
+    }
+
+    return !deny;
+}
 
 class RedstORE: JavaPlugin(), Listener {
     val connections = HashMap<UUID, StorageConnection>();
@@ -47,8 +100,14 @@ class RedstORE: JavaPlugin(), Listener {
             return;
         }
 
-        val player = meta?.let { Bukkit.getPlayer(it.playerUUID) };
+        val owner = Bukkit.getPlayer(meta.playerUUID);
         val newEnabled = !conn.isEnabled();
+
+        if (newEnabled && !canPlayerEnabledConnection(db!!, meta.playerUUID, conn.props)) {
+            evt.player.sendMessage(
+                "${ChatColor.RED}Too many connections enabled! Disable some.");
+            return;
+        }
 
         conn.setEnabled(newEnabled);
         db!!.setConnectionEnabled(meta.uuid, newEnabled);
@@ -56,15 +115,23 @@ class RedstORE: JavaPlugin(), Listener {
         if (newEnabled) {
             val task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
             conn.task = task;
-            if (player != null) {
-                player.sendMessage("Enabled RedstORE connection at " +
+            evt.player.sendMessage(
+                "${ChatColor.GREEN}Enabled RedstORE connection at " +
+                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
+            if (owner != null && owner != evt.player) {
+                owner.sendMessage(
+                    "${ChatColor.GREEN}Your RedstORE connection was enabled at " +
                     "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
             }
         } else {
             conn.task?.cancel();
             conn.task = null;
-            if (player != null) {
-                player.sendMessage("Disabled RedstORE connection at " +
+            evt.player.sendMessage(
+                "${ChatColor.YELLOW}Disabled RedstORE connection at " +
+                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
+            if (owner != null && owner != evt.player) {
+                owner.sendMessage(
+                    "${ChatColor.YELLOW}Your RedstORE connection was disabled at " +
                     "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
             }
         }
@@ -160,13 +227,17 @@ class RedstORE: JavaPlugin(), Listener {
         props: ConnectionProperties,
     ): Boolean {
         if (!checkPlayerPermission(player, props)) {
-            player.sendMessage("You don't have permission to do that here.");
+            player.sendMessage("${ChatColor.RED}You don't have permission to do that here.");
             return false;
         }
 
-        addStoreConnectionUnchecked(player.getUniqueId(), props);
+        val playerUUID = player.getUniqueId();
+        val enabled = canPlayerEnabledConnection(
+            db!!, playerUUID, props);
+
+        addStoreConnectionUnchecked(playerUUID, props, enabled);
         val origin = props.origin;
-        player.sendMessage("Added RedstORE connection at " +
+        player.sendMessage("${ChatColor.GREEN}Added RedstORE connection at " +
             "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
 
         return true;
@@ -175,16 +246,13 @@ class RedstORE: JavaPlugin(), Listener {
     private fun addStoreConnectionUnchecked(
         playerUUID: UUID,
         props: ConnectionProperties,
+        enabled: Boolean,
     ) {
         removeStoreConnection(props.origin);
 
         val origin = props.origin;
-        logger.info("Adding connection at " +
+        logger.info("${ChatColor.GREEN}Adding connection at " +
             "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
-
-        // This is a constant for now, but in the future,
-        // we may want to be able to add a non-enabled connection.
-        val enabled = true;
 
         // Do this first, so that if it throws an exception
         // (permission issue for example)
@@ -209,7 +277,7 @@ class RedstORE: JavaPlugin(), Listener {
             return false;
         }
 
-        logger.info("Removing connection at " +
+        logger.info("${ChatColor.YELLOW}Removing connection at " +
             "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
         db!!.removeConnection(meta.uuid);
 
