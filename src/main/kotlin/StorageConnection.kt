@@ -9,6 +9,8 @@ import org.bukkit.Material
 import org.bukkit.scheduler.BukkitTask
 import java.util.logging.Logger
 import java.util.UUID
+import java.nio.file.Path
+import java.nio.file.AccessDeniedException
 import java.io.File
 import java.io.RandomAccessFile
 import java.lang.Math
@@ -87,11 +89,16 @@ fun checkPlayerPermission(player: Player, props: ConnectionProperties): Boolean 
     return true;
 }
 
+fun getBasePath(template: String, playerUUID: String): Path {
+    return Path.of(template.replace("%uuid%", playerUUID));
+}
+
 class StorageConnection(
     private val materials: Materials,
     private val logger: Logger,
     private val redstore: RedstORE,
     private var enabled: Boolean,
+    playerUUID: UUID,
     public val props: ConnectionProperties,
 ): Runnable {
     public var task: BukkitTask? = null;
@@ -106,13 +113,13 @@ class StorageConnection(
     var transaction: TxnState? = null;
 
     init {
-        val path = redstore.basePath!!.resolve(props.file).normalize();
-        if (!path.startsWith(redstore.basePath)) {
-            throw Exception("Bad path name");
+        val basePath = getBasePath(redstore.basePath!!, playerUUID.toString()).normalize();
+        val path = basePath.resolve(props.file).normalize();
+        if (!path.startsWith(basePath)) {
+            throw AccessDeniedException(props.file);
         }
 
-        path.getParent()?.toFile()?.mkdirs();
-
+        path.getParent().toFile().mkdirs();
         file = RandomAccessFile(path.toFile(), when (props.mode) {
             ConnMode.READ -> "r";
             ConnMode.WRITE -> "rw";

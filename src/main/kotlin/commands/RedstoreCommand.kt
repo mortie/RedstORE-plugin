@@ -9,8 +9,8 @@ import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.entity.Player
 import org.bukkit.block.BlockFace
-import java.io.File
 import java.io.FileNotFoundException
+import java.nio.file.AccessDeniedException
 
 fun parseDirection(dir: String) = when (dir) {
     "north" -> BlockFace.NORTH;
@@ -146,17 +146,9 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     fun connect(
         player: Player,
         mode: String,
-        path: String,
+        file: String,
         params: Array<String>,
     ) {
-        // This is just for nicer error messages,
-        // the check happens in RedstOREDatabase as well
-        val fullPath = redstore.basePath!!.resolve(path).normalize();
-        if (!(fullPath.startsWith(redstore.basePath!!))) {
-            player.sendMessage("${ChatColor.RED}Illegal path: '${path}'");
-            return;
-        }
-
         @Suppress("NAME_SHADOWING")
         val mode = when (mode) {
             "read" -> ConnMode.READ;
@@ -252,13 +244,17 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             pageSize = pageSize,
             pageCount = pageCount,
             latency = latency,
-            file = path,
+            file = file,
         );
 
         try {
             redstore.addStoreConnection(player, props);
         } catch (ex: FileNotFoundException) {
-            player.sendMessage("${ChatColor.RED}Couldn't open ${path}");
+            player.sendMessage(
+                "${ChatColor.RED}Couldn't open ${file}: No such file");
+        } catch (ex: AccessDeniedException) {
+            player.sendMessage(
+                "${ChatColor.RED}Couldn't open ${file}: Permission denied");
         }
     }
 

@@ -14,7 +14,6 @@ import org.bukkit.Bukkit
 import org.bukkit.Material
 import co.aikar.commands.PaperCommandManager
 import java.util.UUID
-import java.nio.file.Path
 import commands.RedstoreCommand
 import redstore.RedstOREDatabase
 import redstore.ConnMode
@@ -76,7 +75,7 @@ class RedstORE: JavaPlugin(), Listener {
     val connectionsByOrigin = HashMap<Block, StorageConnection>();
     var materials: Materials? = null;
     public var db: RedstOREDatabase? = null;
-    public var basePath: Path? = null;
+    public var basePath: String? = null;
 
     @EventHandler
     fun onPlayerInteraction(evt: PlayerInteractEvent) {
@@ -154,16 +153,14 @@ class RedstORE: JavaPlugin(), Listener {
     override fun onEnable() {
         saveDefaultConfig();
 
-        basePath = getConfig().get("base-path")?.let {
-            Path.of(it.toString()).normalize();
-        }
+        basePath = getConfig().get("base-path").toString();
         if (basePath == null) {
             logger.severe("config.yml missing 'base-path'!");
             setEnabled(false);
             return;
         }
 
-        logger.info("Using base path: '${basePath}'");
+        logger.info("Using base path pattern: '${basePath}'");
 
         dataFolder.mkdirs();
         val dbFile = dataFolder.resolve("redstore.db").toString();
@@ -190,7 +187,7 @@ class RedstORE: JavaPlugin(), Listener {
             val conn: StorageConnection;
             try {
                 conn = StorageConnection(
-                    materials!!, logger, this, meta.enabled, props);
+                    materials!!, logger, this, meta.enabled, meta.playerUUID, props);
             } catch (ex: Exception) {
                 logger.info("Failed to load connection ${meta.uuid}: ${ex}");
                 return@getConnections;
@@ -263,7 +260,7 @@ class RedstORE: JavaPlugin(), Listener {
         // (permission issue for example)
         // we don't add anything to the database
         val conn = StorageConnection(
-            materials!!, logger, this, enabled, props);
+            materials!!, logger, this, enabled, playerUUID, props);
 
         val uuid = db!!.addConnection(playerUUID, enabled, props);
 
