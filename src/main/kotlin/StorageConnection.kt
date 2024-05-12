@@ -284,7 +284,17 @@ class StorageConnection(
         var block = dataBlocksStart;
         repeat(props.wordSize) { index ->
             val bit = num and (1L shl (props.wordSize - index - 1));
-            block.setType(if (bit == 0L) props.colorScheme.data else materials.powered);
+            val material: Material;
+            if (bit == 0L) {
+                if (index == 0) {
+                    material = props.colorScheme.dataMSB;
+                } else {
+                    material = props.colorScheme.data;
+                }
+            } else {
+                material = materials.powered;
+            }
+            block.setType(material);
             block = props.layout.dataSpacing.relativeTo(block);
         }
     }
