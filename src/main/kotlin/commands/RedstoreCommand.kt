@@ -306,6 +306,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             );
         }
 
+        val fullFile = if (file.endsWith(".bin")) file else file + ".bin";
+
         val origin = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
         val props = ConnectionProperties(
             mode = mode,
@@ -317,7 +319,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             pageSize = pageSize,
             pageCount = pageCount,
             latency = latency,
-            file = file,
+            file = fullFile,
         );
 
         try {
