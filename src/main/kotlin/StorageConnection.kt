@@ -42,6 +42,7 @@ data class ConnectionProperties(
     val pageSize: Int,
     val pageCount: Int,
     val latency: Int,
+    val dataRate: Int,
     val file: String,
 ) {
     fun replaceFile(newFile: String): ConnectionProperties {
@@ -56,6 +57,7 @@ data class ConnectionProperties(
             pageSize = pageSize,
             pageCount = pageCount,
             latency = latency,
+            dataRate = dataRate,
             file = newFile,
         )
     }
@@ -371,7 +373,7 @@ class StorageConnection(
                 return;
             }
 
-            txn.timer = 4;
+            txn.timer = props.dataRate * 2;
             when (props.mode) {
                 ConnMode.READ -> handleRead();
                 ConnMode.WRITE -> handleWrite();

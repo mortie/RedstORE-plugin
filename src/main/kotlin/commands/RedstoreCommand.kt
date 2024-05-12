@@ -112,6 +112,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(" count=<N>: Set the number of accessible pages in the file.");
             p.sendMessage("    This dictates the latency of the connection.");
             p.sendMessage("    Default: 2^addr");
+            p.sendMessage(" rate=<N>: Set the data rate, in redstone ticks per wordt.");
+            p.sendMessage("    Default: 2");
             p.sendMessage(" layout=<layout>: Set the layout of the connection. One of:");
             p.sendMessage("    line, diag, towers");
             p.sendMessage("    Default: line");
@@ -172,6 +174,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         var wordSize = 8;
         var pageSize = 8;
         var pageCount = -1;
+        var dataRate = 2;
         var layoutName: String? = null;
         var colorsName: String? = null;
         var flipAddr = false;
@@ -227,6 +230,13 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
                 if (pageCount < 1) {
                     player.sendMessage(
                         "${ChatColor.RED}Invalid page count: ${pageCount}");
+                    return;
+                }
+            } else if (k == "rate") {
+                dataRate = v.toInt();
+                if (dataRate < 1 || dataRate > 10) {
+                    player.sendMessage(
+                        "${ChatColor.RED}Invalid data rate: ${dataRate}");
                     return;
                 }
             } else if (k == "colors") {
@@ -324,6 +334,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             pageSize = pageSize,
             pageCount = pageCount,
             latency = latency,
+            dataRate = dataRate,
             file = fullFile,
         );
 
@@ -413,7 +424,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             "addr=${props.addressBits} " +
             "ws=${props.wordSize} " +
             "ps=${props.pageSize} " +
-            "count=${props.pageCount}");
+            "count=${props.pageCount} " +
+            "rate=${props.dataRate}");
     }
 
     @Subcommand("list")
