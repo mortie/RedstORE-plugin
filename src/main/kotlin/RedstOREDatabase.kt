@@ -10,18 +10,40 @@ import java.util.logging.Logger
 import org.bukkit.block.Block
 import org.bukkit.block.BlockFace
 import org.bukkit.Bukkit
+import org.bukkit.Material
 import redstore.ConnectionProperties
 import redstore.ConnMode
+import redstore.Layout
+import redstore.BlockOffset
+import redstore.ColorScheme
 
-object Connections: Table("connections") {
+object Connections: Table("storage_connections_v1") {
     val uuid = uuid("uuid").uniqueIndex();
     val mode = char("mode");
     val enabled = bool("enabled");
+
     val worldUUID = uuid("world_uuid");
     val originX = integer("origin_x");
     val originY = integer("origin_y");
     val originZ = integer("origin_z");
-    val direction = varchar("direction", 2);
+
+    val addrOffX = integer("addr_offset_x");
+    val addrOffY = integer("addr_offset_y");
+    val addrOffZ = integer("addr_offset_z");
+    val addrSpaceX = integer("addr_spacing_x");
+    val addrSpaceY = integer("addr_spacing_y");
+    val addrSpaceZ = integer("addr_spacing_z");
+
+    val dataOffX = integer("data_offset_x");
+    val dataOffY = integer("data_offset_y");
+    val dataOffZ = integer("data_offset_z");
+    val dataSpaceX = integer("data_spacing_x");
+    val dataSpaceY = integer("data_spacing_y");
+    val dataSpaceZ = integer("data_spacing_z");
+
+    val addrMaterial = text("address_material");
+    val dataMaterial = text("data_material");
+
     val addressBits = integer("address_bits");
     val wordSize = integer("word_size");
     val pageSize = integer("page_size");
@@ -79,19 +101,17 @@ class RedstOREDatabase(
             enabled = it[Connections.enabled],
         );
 
-        val direction = when (it[Connections.direction]) {
-            "N" -> BlockFace.NORTH;
-            "S" -> BlockFace.SOUTH;
-            "E" -> BlockFace.EAST;
-            "W" -> BlockFace.WEST;
-            "U" -> BlockFace.UP;
-            "D" -> BlockFace.DOWN;
-            else -> null;
-        };
-        if (direction == null) {
+        val addrMaterial = Material.matchMaterial(it[Connections.addrMaterial]);
+        if (addrMaterial == null) {
             logger.warning(
-                "Connection with unrecognized direction " +
-                "${it[Connections.direction]}");
+                "Connection with bad addr material name ${it[Connections.addrMaterial]}");
+            return null;
+        }
+
+        val dataMaterial = Material.matchMaterial(it[Connections.dataMaterial]);
+        if (dataMaterial == null) {
+            logger.warning(
+                "Connection with bad addr material name ${it[Connections.dataMaterial]}");
             return null;
         }
 
@@ -101,7 +121,29 @@ class RedstOREDatabase(
                 it[Connections.originX],
                 it[Connections.originY],
                 it[Connections.originZ]),
-            direction = direction,
+            layout = Layout(
+                address = BlockOffset(
+                    it[Connections.addrOffX],
+                    it[Connections.addrOffY],
+                    it[Connections.addrOffZ],
+                ),
+                addressSpacing = BlockOffset(
+                    it[Connections.addrSpaceX],
+                    it[Connections.addrSpaceY],
+                    it[Connections.addrSpaceZ],
+                ),
+                data = BlockOffset(
+                    it[Connections.dataOffX],
+                    it[Connections.dataOffY],
+                    it[Connections.dataOffZ],
+                ),
+                dataSpacing = BlockOffset(
+                    it[Connections.dataSpaceX],
+                    it[Connections.dataSpaceY],
+                    it[Connections.dataSpaceZ],
+                ),
+            ),
+            colorScheme = ColorScheme(addrMaterial, dataMaterial),
             addressBits = it[Connections.addressBits],
             wordSize = it[Connections.wordSize],
             pageSize = it[Connections.pageSize],
@@ -149,19 +191,31 @@ class RedstOREDatabase(
                     ConnMode.WRITE -> 'W';
                 };
                 it[Connections.enabled] = enabled;
+
                 it[Connections.worldUUID] = props.origin.getWorld().getUID();
                 it[Connections.originX] = props.origin.getX();
                 it[Connections.originY] = props.origin.getY();
                 it[Connections.originZ] = props.origin.getZ();
-                it[Connections.direction] = when (props.direction) {
-                    BlockFace.NORTH -> "N";
-                    BlockFace.SOUTH -> "S";
-                    BlockFace.EAST-> "E";
-                    BlockFace.WEST-> "W";
-                    BlockFace.UP-> "U";
-                    BlockFace.DOWN-> "D";
-                    else -> "?";
-                };
+
+                it[Connections.addrOffX] = props.layout.address.x;
+                it[Connections.addrOffY] = props.layout.address.y;
+                it[Connections.addrOffZ] = props.layout.address.z;
+                it[Connections.addrSpaceX] = props.layout.addressSpacing.x;
+                it[Connections.addrSpaceY] = props.layout.addressSpacing.y;
+                it[Connections.addrSpaceZ] = props.layout.addressSpacing.z;
+
+                it[Connections.dataOffX] = props.layout.data.x;
+                it[Connections.dataOffY] = props.layout.data.y;
+                it[Connections.dataOffZ] = props.layout.data.z;
+                it[Connections.dataSpaceX] = props.layout.dataSpacing.x;
+                it[Connections.dataSpaceY] = props.layout.dataSpacing.y;
+                it[Connections.dataSpaceZ] = props.layout.dataSpacing.z;
+
+                it[Connections.addrMaterial] =
+                    props.colorScheme.address.getKey().toString();
+                it[Connections.dataMaterial] =
+                    props.colorScheme.data.getKey().toString();
+
                 it[Connections.addressBits] = props.addressBits;
                 it[Connections.wordSize] = props.wordSize;
                 it[Connections.pageSize] = props.pageSize;

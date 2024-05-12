@@ -14,16 +14,18 @@ import java.nio.file.AccessDeniedException
 import java.io.File
 import java.io.RandomAccessFile
 import java.lang.Math
+import redstore.ColorScheme
+import redstore.BlockOffset
+import redstore.Layout
 
 class Materials(
-    public val originEnabled: Material,
-    public val originDisabled: Material,
-    public val powered: Material,
-    public val writeBit: Material,
-    public val readBit: Material,
-    public val readPending: Material,
-    public val addressBits: Material,
-    public val dataBits: Material,
+    val readDisabled: Material,
+    val readEnabled: Material,
+    val readPending: Material,
+    val writeDisabled: Material,
+    val writeEnabled: Material,
+    val writePending: Material,
+    val powered: Material,
 ) {}
 
 enum class ConnMode {
@@ -33,7 +35,8 @@ enum class ConnMode {
 data class ConnectionProperties(
     val mode: ConnMode,
     val origin: Block,
-    val direction: BlockFace,
+    val layout: Layout,
+    val colorScheme: ColorScheme,
     val addressBits: Int,
     val wordSize: Int,
     val pageSize: Int,
@@ -64,26 +67,22 @@ fun checkPlayerPermission(player: Player, props: ConnectionProperties): Boolean 
         return false;
     }
 
-    // Activate block
-    block = block.getRelative(props.direction, 2);
-    if (!checkPlayerCanBreak(player, block)) {
-        return false;
-    }
-
     // Address bits
+    block = props.layout.address.relativeTo(props.origin);
     repeat(props.addressBits) {
-        block = block.getRelative(props.direction, 2);
         if (!checkPlayerCanBreak(player, block)) {
             return@checkPlayerPermission false;
         }
+        block = props.layout.addressSpacing.relativeTo(block);
     }
 
     // Data bits
+    block = props.layout.data.relativeTo(props.origin);
     repeat(props.wordSize) {
-        block = block.getRelative(props.direction, 2);
         if (!checkPlayerCanBreak(player, block)) {
             return@checkPlayerPermission false;
         }
+        block = props.layout.dataSpacing.relativeTo(block);
     }
 
     return true;
@@ -103,8 +102,10 @@ class StorageConnection(
 ): Runnable {
     public var task: BukkitTask? = null;
 
-    val activateMaterial: Material;
-    val activateBlock: Block;
+    val disabledMaterial: Material;
+    val enabledMaterial: Material;
+    val pendingMaterial: Material;
+
     val addressBlocksStart: Block;
     val dataBlocksStart: Block;
     val pageSizeBytes: Int;
@@ -129,30 +130,40 @@ class StorageConnection(
             (props.pageSize.toDouble() * props.wordSize.toDouble()) /
             8.toDouble()).toInt();
 
-        var block = props.origin;
-        block.setType(when (enabled) {
-            true -> materials.originEnabled;
-            false -> materials.originDisabled;
-        });
-
-        block = block.getRelative(props.direction, 2);
-        activateMaterial = when (props.mode) {
-            ConnMode.READ -> materials.readBit;
-            ConnMode.WRITE -> materials.writeBit;
-        };
-        block.setType(activateMaterial);
-        activateBlock = block;
-
-        addressBlocksStart = block.getRelative(props.direction, 2);
-        repeat(props.addressBits) {
-            block = block.getRelative(props.direction, 2);
-            block.setType(materials.addressBits);
+        when (props.mode) {
+            ConnMode.READ -> {
+                disabledMaterial = materials.readDisabled;
+                enabledMaterial = materials.readEnabled;
+                pendingMaterial = materials.readPending;
+            }
+            ConnMode.WRITE -> {
+                disabledMaterial = materials.writeDisabled;
+                enabledMaterial = materials.writeEnabled;
+                pendingMaterial = materials.writePending;
+            }
         }
 
-        dataBlocksStart = block.getRelative(props.direction, 2);
+
+        var block: Block;
+
+        block = props.origin;
+        block.setType(when (enabled) {
+            true -> enabledMaterial;
+            false -> disabledMaterial;
+        });
+
+        addressBlocksStart = props.layout.address.relativeTo(props.origin);
+        block = addressBlocksStart;
+        repeat(props.addressBits) {
+            block.setType(props.colorScheme.address);
+            block = props.layout.addressSpacing.relativeTo(block);
+        }
+
+        dataBlocksStart = props.layout.data.relativeTo(props.origin);
+        block = dataBlocksStart;
         repeat(props.wordSize) {
-            block = block.getRelative(props.direction, 2);
-            block.setType(materials.dataBits);
+            block.setType(props.colorScheme.data);
+            block = props.layout.dataSpacing.relativeTo(block);
         }
     }
 
@@ -162,14 +173,14 @@ class StorageConnection(
         file.close();
     }
 
-    fun readBlockBits(start: Block, count: Int): Int {
+    fun readBlockBits(start: Block, count: Int, spacing: BlockOffset): Int {
         var block = start;
         var num = 0;
         repeat(count) { index ->
             if (block.isBlockPowered()) {
                 num = num or (1 shl (count - index - 1));
             }
-            block = block.getRelative(props.direction, 2);
+            block = spacing.relativeTo(block);
         }
 
         return num;
@@ -191,26 +202,27 @@ class StorageConnection(
         }
 
         props.origin.setType(when (enabled) {
-            true -> materials.originEnabled;
-            false -> materials.originDisabled;
+            true -> enabledMaterial;
+            false -> disabledMaterial;
         });
     }
 
     override fun run() {
         if (transaction == null) {
-            val activatePowered = activateBlock.isBlockPowered();
+            val activatePowered = props.origin.isBlockPowered();
             if (!activatePowered) {
                 return;
             }
 
-            val address = readBlockBits(addressBlocksStart, props.addressBits);
+            val address = readBlockBits(
+                addressBlocksStart, props.addressBits, props.layout.addressSpacing);
 
             logger.info("Begin ${props.mode} txn, page ${address}");
             transaction = TxnState(
                 address = address,
                 page = ByteArray(pageSizeBytes),
 
-                timer = props.latency * 2, // 2 redstone ticks per gamm tick
+                timer = props.latency * 2, // 2 redstone ticks per game tick
                 bytePosition = 0,
                 bitPosition = 0,
             );
@@ -219,9 +231,9 @@ class StorageConnection(
             if (props.mode == ConnMode.READ && address < props.pageCount) {
                 file.seek(address.toLong() * pageSizeBytes);
                 file.read(txn.page);
-                activateBlock.setType(materials.readPending);
             }
 
+            props.origin.setType(pendingMaterial);
             handleTransaction();
         } else {
             handleTransaction();
@@ -229,34 +241,42 @@ class StorageConnection(
     }
 
     fun handleRead() {
+        props.origin.setType(materials.powered);
+
         val txn = transaction!!;
 
-        var block = dataBlocksStart.getRelative(props.direction, (props.wordSize - 1) * 2);
-        val direction = props.direction.getOppositeFace();
-        repeat(props.wordSize) {
+        var num = 0L;
+        repeat(props.wordSize) { index ->
             if (txn.bytePosition >= txn.page.size) {
-                block.setType(materials.dataBits);
                 return@repeat;
             }
 
             val byte = txn.page[txn.bytePosition].toInt();
             val bit = byte and (1 shl txn.bitPosition);
-            block.setType(if (bit == 0) materials.dataBits else materials.powered);
+            if (bit != 0) {
+                num = num or (1L shl index);
+            }
 
             txn.bitPosition += 1;
             if (txn.bitPosition >= 8) {
                 txn.bitPosition = 0;
                 txn.bytePosition += 1;
             }
+        }
 
-            block = block.getRelative(direction, 2);
+        var block = dataBlocksStart;
+        repeat(props.wordSize) { index ->
+            val bit = num or (1L shl (props.wordSize - index - 1));
+            block.setType(if (bit == 0L) props.colorScheme.data else materials.powered);
+            block = props.layout.dataSpacing.relativeTo(block);
         }
     }
 
     fun handleWrite() {
         val txn = transaction!!;
 
-        val bits = readBlockBits(dataBlocksStart, props.wordSize);
+        val bits = readBlockBits(
+            dataBlocksStart, props.wordSize, props.layout.dataSpacing);
         repeat(props.wordSize) { index ->
             if (txn.bytePosition >= txn.page.size) {
                 return@repeat;
@@ -284,22 +304,20 @@ class StorageConnection(
         transaction = null;
 
         props.origin.setType(when (enabled) {
-            true -> materials.originEnabled;
-            false -> materials.originDisabled;
+            true -> enabledMaterial;
+            false -> disabledMaterial;
         });
-
-        activateBlock.setType(activateMaterial);
 
         var block = addressBlocksStart;
         repeat(props.addressBits) {
-            block.setType(materials.addressBits);
-            block = block.getRelative(props.direction, 2);
+            block.setType(props.colorScheme.address);
+            block = props.layout.addressSpacing.relativeTo(block);
         }
 
         block = dataBlocksStart;
         repeat(props.wordSize) {
-            block.setType(materials.dataBits);
-            block = block.getRelative(props.direction, 2);
+            block.setType(props.colorScheme.data);
+            block = props.layout.dataSpacing.relativeTo(block);
         }
 
         if (props.mode == ConnMode.WRITE && txn.address < props.pageCount) {
@@ -320,8 +338,6 @@ class StorageConnection(
         val tick = txn.timer <= 0;
 
         if (tick) {
-            activateBlock.setType(materials.powered);
-
             if (txn.bytePosition >= txn.page.size) {
                 endTransaction();
                 return;

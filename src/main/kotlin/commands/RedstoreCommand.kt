@@ -3,6 +3,7 @@ package commands
 import redstore.RedstORE
 import redstore.ConnectionProperties
 import redstore.ConnMode
+import redstore.LayoutDirection
 import co.aikar.commands.BaseCommand
 import co.aikar.commands.annotation.*
 import org.bukkit.Bukkit
@@ -13,23 +14,11 @@ import java.io.FileNotFoundException
 import java.nio.file.AccessDeniedException
 
 fun parseDirection(dir: String) = when (dir) {
-    "north" -> BlockFace.NORTH;
-    "south" -> BlockFace.SOUTH;
-    "east" -> BlockFace.EAST;
-    "west" -> BlockFace.WEST;
-    "up" -> BlockFace.UP;
-    "down" -> BlockFace.DOWN;
+    "north" -> LayoutDirection.NORTH;
+    "south" -> LayoutDirection.SOUTH;
+    "east" -> LayoutDirection.EAST;
+    "west" -> LayoutDirection.WEST;
     else -> null;
-}
-
-fun stringifyDirection(dir: BlockFace) = when (dir) {
-    BlockFace.NORTH -> "north";
-    BlockFace.SOUTH -> "south";
-    BlockFace.EAST -> "east";
-    BlockFace.WEST -> "west";
-    BlockFace.UP -> "up";
-    BlockFace.DOWN -> "down";
-    else -> "?";
 }
 
 fun baseLatencyFromWordCount(wc: Int): Int {
@@ -109,7 +98,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(" Create a new RedstORE connection at your location.");
             p.sendMessage(" Available parameters:");
             p.sendMessage(" dir=<direction>: Set direction. One of:");
-            p.sendMessage("    north, south, east, west, up, down");
+            p.sendMessage("    north, south, east, west");
             p.sendMessage("    Default: determined by camera direction");
             p.sendMessage(" addr=<N>: Set the number of address bits.");
             p.sendMessage("    Default: 4");
@@ -120,6 +109,12 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(" count=<N>: Set the number of accessible pages in the file.");
             p.sendMessage("    This dictates the latency of the connection.");
             p.sendMessage("    Default: 2^addr");
+            p.sendMessage(" layout=<layout>: Set the layout of the connection. One of:");
+            p.sendMessage("    line, diag, towers");
+            p.sendMessage("    Default: line");
+            p.sendMessage(" colors=<colors>: Set the color scheme. One of:");
+            p.sendMessage("    wool, capo");
+            p.sendMessage("    Default: wool");
         } else if (command == "disconnect") {
             p.sendMessage("${ChatColor.YELLOW}/redstore disconnect");
             p.sendMessage(" Disconnect the RedstORE connection at your location.");
@@ -161,11 +156,18 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             }
         }
 
-        var direction = player.getFacing();
+        var direction = LayoutDirection.fromFace(player.getFacing());
+        if (direction == null) {
+            player.sendMessage("${ChatColor.RED}Invalid direction: ${player.getFacing()}");
+            return;
+        }
+
         var addressBits = 4;
         var wordSize = 8;
         var pageSize = 8;
         var pageCount = -1;
+        var layoutName: String? = null;
+        var colorsName: String? = null;
 
         for (param in params) {
             val parts = param.split("=", limit=2);
@@ -213,6 +215,10 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
                         "${ChatColor.RED}Invalid page count: ${pageCount}");
                     return;
                 }
+            } else if (k == "colors") {
+                colorsName = v;
+            } else if (k == "layout") {
+                layoutName = v;
             } else {
                 player.sendMessage("${ChatColor.RED}Unknown parameter: '${k}'");
                 return;
@@ -234,11 +240,32 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             ConnMode.WRITE -> 0;
         }
 
-        val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
+        val layoutSpec = if (layoutName == null) {
+            redstore.layouts.getDefault();
+        } else {
+            redstore.layouts.get(layoutName);
+        }
+        if (layoutSpec == null) {
+            player.sendMessage("${ChatColor.RED}Unknown layout: ${layoutName!!}");
+            return;
+        }
+
+        val colorScheme = if (colorsName == null) {
+            redstore.colorSchemes.getDefault();
+        } else {
+            redstore.colorSchemes.get(colorsName);
+        }
+        if (colorScheme == null) {
+            player.sendMessage("${ChatColor.RED}Unknown color scheme: ${colorsName!!}");
+            return;
+        }
+
+        val origin = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
         val props = ConnectionProperties(
             mode = mode,
-            origin = block,
-            direction = direction,
+            origin = origin,
+            layout = layoutSpec(direction!!, addressBits, wordSize),
+            colorScheme = colorScheme,
             addressBits = addressBits,
             wordSize = wordSize,
             pageSize = pageSize,
@@ -301,7 +328,6 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         player.sendMessage("  Enabled: ${meta.enabled}");
         player.sendMessage(
             "  " +
-            "dir=${stringifyDirection(props.direction)} " +
             "addr=${props.addressBits} " +
             "ws=${props.wordSize} " +
             "ps=${props.pageSize} " +

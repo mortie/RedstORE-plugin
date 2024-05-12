@@ -17,6 +17,8 @@ import java.util.UUID
 import commands.RedstoreCommand
 import redstore.RedstOREDatabase
 import redstore.ConnMode
+import redstore.ColorSchemes
+import redstore.Layouts
 import redstore.checkPlayerPermission
 
 fun canPlayerEnabledConnection(
@@ -38,7 +40,7 @@ fun canPlayerEnabledConnection(
     var openConns = 1;
     var deny = false;
 
-    db.getPlayerConnections(player) { meta, props ->
+    db.getPlayerConnections(player) { meta, ps ->
         if (!meta.enabled || deny) {
             return@getPlayerConnections;
         }
@@ -49,16 +51,16 @@ fun canPlayerEnabledConnection(
             return@getPlayerConnections;
         }
 
-        var status = files[props.file];
+        var status = files[ps.file];
         if (status == null) {
-            status = when (props.mode) {
+            status = when (ps.mode) {
                 ConnMode.READ -> FileStatus(1, 0);
                 ConnMode.WRITE -> FileStatus(0, 1);
             }
-            files[props.file] = status;
-        } else if (props.mode == ConnMode.READ) {
+            files[ps.file] = status;
+        } else if (ps.mode == ConnMode.READ) {
             status.readers += 1;
-        } else if (props.mode == ConnMode.WRITE) {
+        } else if (ps.mode == ConnMode.WRITE) {
             status.writers += 1;
         }
 
@@ -74,6 +76,8 @@ class RedstORE: JavaPlugin(), Listener {
     val connections = HashMap<UUID, StorageConnection>();
     val connectionsByOrigin = HashMap<Block, StorageConnection>();
     var materials: Materials? = null;
+    public val colorSchemes = ColorSchemes();
+    public val layouts = Layouts();
     public var db: RedstOREDatabase? = null;
     public var basePath: String? = null;
 
@@ -168,14 +172,13 @@ class RedstORE: JavaPlugin(), Listener {
         db = RedstOREDatabase(dbFile, logger);
 
         materials = Materials(
-            originEnabled = Material.matchMaterial("minecraft:sea_lantern")!!,
-            originDisabled = Material.matchMaterial("minecraft:lapis_block")!!,
+            readDisabled = Material.matchMaterial("minecraft:netherite_block")!!,
+            readEnabled = Material.matchMaterial("minecraft:diamond_block")!!,
+            readPending = Material.matchMaterial("minecraft:sea_lantern")!!,
+            writeDisabled = Material.matchMaterial("minecraft:coal_block")!!,
+            writeEnabled = Material.matchMaterial("minecraft:gold_block")!!,
+            writePending = Material.matchMaterial("minecraft:sea_lantern")!!,
             powered = Material.matchMaterial("minecraft:redstone_block")!!,
-            writeBit = Material.matchMaterial("minecraft:red_wool")!!,
-            readBit = Material.matchMaterial("minecraft:lime_wool")!!,
-            readPending = Material.matchMaterial("minecraft:green_wool")!!,
-            addressBits = Material.matchMaterial("minecraft:blue_wool")!!,
-            dataBits = Material.matchMaterial("minecraft:brown_wool")!!,
         )
 
         PaperCommandManager(this).apply {
