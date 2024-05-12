@@ -19,7 +19,7 @@ class ColorSchemes {
             "minecraft:purple_concrete", "minecraft:blue_terracotta");
         add("wool",
             "minecraft:light_blue_wool", "minecraft:blue_wool",
-            "minecraft:light_gray_wool", "minecraft:brown_wool");
+            "minecraft:orange_wool", "minecraft:brown_wool");
     }
 
     fun get(name: String): ColorScheme? {
