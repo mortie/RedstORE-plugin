@@ -20,6 +20,10 @@ data class BlockOffset(
         return BlockOffset(x + addX, y + addY, z + addZ);
     }
 
+    fun add(add: BlockOffset): BlockOffset {
+        return BlockOffset(x + add.x, y + add.y, z + add.z);
+    }
+
     fun inv(): BlockOffset {
         return BlockOffset(-x, -y, -z);
     }

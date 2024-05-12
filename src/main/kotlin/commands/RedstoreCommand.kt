@@ -4,6 +4,7 @@ import redstore.RedstORE
 import redstore.ConnectionProperties
 import redstore.ConnMode
 import redstore.LayoutDirection
+import redstore.Layout
 import co.aikar.commands.BaseCommand
 import co.aikar.commands.annotation.*
 import org.bukkit.Bukkit
@@ -168,8 +169,16 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         var pageCount = -1;
         var layoutName: String? = null;
         var colorsName: String? = null;
+        var flipAddr = false;
+        var flipData = false;
 
         for (param in params) {
+            if (param == "flip") {
+                flipAddr = true;
+                flipData = true;
+                continue;
+            }
+
             val parts = param.split("=", limit=2);
             if (parts.size != 2) {
                 player.sendMessage(
@@ -219,6 +228,21 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
                 colorsName = v;
             } else if (k == "layout") {
                 layoutName = v;
+            } else if (k == "flip") {
+                if (v == "data") {
+                    flipData = true;
+                } else if (v == "addr") {
+                    flipAddr = true;
+                } else if (v == "y") {
+                    flipData = true;
+                    flipAddr = true;
+                } else if (v == "n") {
+                    flipData = false;
+                    flipAddr = false;
+                } else {
+                    player.sendMessage("${ChatColor.RED}Invalid flip option: '${v}'");
+                    return;
+                }
             } else {
                 player.sendMessage("${ChatColor.RED}Unknown parameter: '${k}'");
                 return;
@@ -260,11 +284,33 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             return;
         }
 
+        var layout = layoutSpec(direction!!, addressBits, wordSize);
+
+        if (flipData) {
+            layout = Layout(
+                address = layout.address,
+                addressSpacing = layout.addressSpacing,
+                data = layout.data.add(
+                    layout.dataSpacing.mul(wordSize - 1)),
+                dataSpacing = layout.dataSpacing.inv(),
+            );
+        }
+
+        if (flipAddr) {
+            layout = Layout(
+                address = layout.address.add(
+                    layout.addressSpacing.mul(addressBits - 1)),
+                addressSpacing = layout.addressSpacing.inv(),
+                data = layout.data,
+                dataSpacing = layout.dataSpacing,
+            );
+        }
+
         val origin = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
         val props = ConnectionProperties(
             mode = mode,
             origin = origin,
-            layout = layoutSpec(direction!!, addressBits, wordSize),
+            layout = layout,
             colorScheme = colorScheme,
             addressBits = addressBits,
             wordSize = wordSize,
