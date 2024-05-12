@@ -217,7 +217,6 @@ class StorageConnection(
             val address = readBlockBits(
                 addressBlocksStart, props.addressBits, props.layout.addressSpacing);
 
-            logger.info("Begin ${props.mode} txn, page ${address}");
             transaction = TxnState(
                 address = address,
                 page = ByteArray(pageSizeBytes),
@@ -300,7 +299,6 @@ class StorageConnection(
 
     fun endTransaction() {
         val txn = transaction!!;
-        logger.info("End ${props.mode} txn, page ${txn.address}");
         transaction = null;
 
         props.origin.setType(when (enabled) {
