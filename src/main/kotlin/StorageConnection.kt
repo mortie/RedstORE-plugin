@@ -154,16 +154,18 @@ class StorageConnection(
 
         addressBlocksStart = props.layout.address.relativeTo(props.origin);
         block = addressBlocksStart;
-        repeat(props.addressBits) {
-            block.setType(props.colorScheme.address);
+        block.setType(props.colorScheme.addressMSB);
+        repeat(props.addressBits - 1) {
             block = props.layout.addressSpacing.relativeTo(block);
+            block.setType(props.colorScheme.address);
         }
 
         dataBlocksStart = props.layout.data.relativeTo(props.origin);
         block = dataBlocksStart;
-        repeat(props.wordSize) {
-            block.setType(props.colorScheme.data);
+        block.setType(props.colorScheme.dataMSB);
+        repeat(props.wordSize - 1) {
             block = props.layout.dataSpacing.relativeTo(block);
+            block.setType(props.colorScheme.data);
         }
     }
 

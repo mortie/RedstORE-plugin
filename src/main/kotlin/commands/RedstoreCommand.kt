@@ -113,8 +113,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage("    line, diag, towers");
             p.sendMessage("    Default: line");
             p.sendMessage(" colors=<colors>: Set the color scheme. One of:");
-            p.sendMessage("    wool, capo");
-            p.sendMessage("    Default: wool");
+            p.sendMessage("    muted, wool");
+            p.sendMessage("    Default: muted");
         } else if (command == "disconnect") {
             p.sendMessage("${ChatColor.YELLOW}/redstore disconnect");
             p.sendMessage(" Disconnect the RedstORE connection at your location.");

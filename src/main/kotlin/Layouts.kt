@@ -19,6 +19,10 @@ data class BlockOffset(
     fun add(addX: Int, addY: Int, addZ: Int): BlockOffset {
         return BlockOffset(x + addX, y + addY, z + addZ);
     }
+
+    fun inv(): BlockOffset {
+        return BlockOffset(-x, -y, -z);
+    }
 }
 
 data class Layout(
@@ -117,15 +121,15 @@ private fun diagLayout(
 
 private fun towersLayout(
     dir: LayoutDirection,
-    @Suppress("UNUSED_PARAMETER") addrBits: Int,
-    @Suppress("UNUSED_PARAMETER") dataBits: Int,
+    addrBits: Int,
+    dataBits: Int,
 ): Layout {
     val spacing = dir.getSpacing().mul(2);
     return Layout(
-        address = spacing,
-        addressSpacing = BlockOffset(0, 2, 0),
-        data = spacing.mul(2),
-        dataSpacing = BlockOffset(0, 2, 0),
+        address = spacing.add(0, (addrBits - 1) * 2, 0),
+        addressSpacing = BlockOffset(0, -2, 0),
+        data = spacing.mul(2).add(0, (dataBits - 1) * 2, 0),
+        dataSpacing = BlockOffset(0, -2, 0),
     );
 }
 

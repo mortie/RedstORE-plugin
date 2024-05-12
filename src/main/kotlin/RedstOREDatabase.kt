@@ -42,7 +42,9 @@ object Connections: Table("storage_connections_v1") {
     val dataSpaceZ = integer("data_spacing_z");
 
     val addrMaterial = text("address_material");
+    val addrMSBMaterial = text("address_msb_material");
     val dataMaterial = text("data_material");
+    val dataMSBMaterial = text("data_msb_material");
 
     val addressBits = integer("address_bits");
     val wordSize = integer("word_size");
@@ -102,16 +104,18 @@ class RedstOREDatabase(
         );
 
         val addrMaterial = Material.matchMaterial(it[Connections.addrMaterial]);
-        if (addrMaterial == null) {
-            logger.warning(
-                "Connection with bad addr material name ${it[Connections.addrMaterial]}");
-            return null;
-        }
-
+        val addrMSBMaterial = Material.matchMaterial(it[Connections.addrMSBMaterial]);
         val dataMaterial = Material.matchMaterial(it[Connections.dataMaterial]);
-        if (dataMaterial == null) {
+        val dataMSBMaterial = Material.matchMaterial(it[Connections.dataMSBMaterial]);
+
+        if (
+            addrMaterial == null ||
+            addrMSBMaterial == null ||
+            dataMaterial == null ||
+            dataMSBMaterial == null
+        ) {
             logger.warning(
-                "Connection with bad addr material name ${it[Connections.dataMaterial]}");
+                "Connection with bad addr material name");
             return null;
         }
 
@@ -143,7 +147,12 @@ class RedstOREDatabase(
                     it[Connections.dataSpaceZ],
                 ),
             ),
-            colorScheme = ColorScheme(addrMaterial, dataMaterial),
+            colorScheme = ColorScheme(
+                addrMaterial,
+                addrMSBMaterial,
+                dataMaterial,
+                dataMSBMaterial,
+            ),
             addressBits = it[Connections.addressBits],
             wordSize = it[Connections.wordSize],
             pageSize = it[Connections.pageSize],
@@ -213,8 +222,12 @@ class RedstOREDatabase(
 
                 it[Connections.addrMaterial] =
                     props.colorScheme.address.getKey().toString();
+                it[Connections.addrMSBMaterial] =
+                    props.colorScheme.addressMSB.getKey().toString();
                 it[Connections.dataMaterial] =
                     props.colorScheme.data.getKey().toString();
+                it[Connections.dataMSBMaterial] =
+                    props.colorScheme.dataMSB.getKey().toString();
 
                 it[Connections.addressBits] = props.addressBits;
                 it[Connections.wordSize] = props.wordSize;
