@@ -164,6 +164,7 @@ class RedstORE: JavaPlugin(), Listener {
             return;
         }
 
+        basePath = basePath!!.replace("%redstore%", dataFolder.toString());
         logger.info("Using base path pattern: '${basePath}'");
 
         dataFolder.mkdirs();

@@ -1,1 +1,1 @@
-base-path: ./redstore-files/%uuid%
+base-path: '%redstore%/files/%uuid%'
