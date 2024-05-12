@@ -115,8 +115,11 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(" rate=<N>: Set the data rate, in redstone ticks per wordt.");
             p.sendMessage("    Default: 2");
             p.sendMessage(" layout=<layout>: Set the layout of the connection. One of:");
-            p.sendMessage("    line, diag, towers");
+            p.sendMessage("    line, towers, diag,")
+            p.sendMessage("    diag:capo:a1, diag:capo:b1, diag:capo:a2, diag:capo:b2");
             p.sendMessage("    Default: line");
+            p.sendMessage(" flip=<y|n|addr|data>: Flip the address and/or data bits.");
+            p.sendMessage("    Default: n");
             p.sendMessage(" colors=<colors>: Set the color scheme. One of:");
             p.sendMessage("    muted, wool");
             p.sendMessage("    Default: muted");
@@ -153,11 +156,6 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         file: String,
         params: Array<String>,
     ) {
-        if (!player.hasPermission("redstore")) {
-            Player.sendMessage("${ChatColor.RED}Permission denied.");
-            return;
-        }
-
         @Suppress("NAME_SHADOWING")
         val mode = when (mode) {
             "read" -> ConnMode.READ;
@@ -250,10 +248,10 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             } else if (k == "layout") {
                 layoutName = v;
             } else if (k == "flip") {
-                if (v == "data") {
-                    flipData = true;
-                } else if (v == "addr") {
+                if (v == "addr") {
                     flipAddr = true;
+                } else if (v == "data") {
+                    flipData = true;
                 } else if (v == "y") {
                     flipData = true;
                     flipAddr = true;
@@ -307,24 +305,12 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
 
         var layout = layoutSpec(direction!!, addressBits, wordSize);
 
-        if (flipData) {
-            layout = Layout(
-                address = layout.address,
-                addressSpacing = layout.addressSpacing,
-                data = layout.data.add(
-                    layout.dataSpacing.mul(wordSize - 1)),
-                dataSpacing = layout.dataSpacing.inv(),
-            );
+        if (flipAddr) {
+            layout = layout.flipAddress(addressBits);
         }
 
-        if (flipAddr) {
-            layout = Layout(
-                address = layout.address.add(
-                    layout.addressSpacing.mul(addressBits - 1)),
-                addressSpacing = layout.addressSpacing.inv(),
-                data = layout.data,
-                dataSpacing = layout.dataSpacing,
-            );
+        if (flipData) {
+            layout = layout.flipData(wordSize);
         }
 
         val fullFile = if (file.endsWith(".bin")) file else file + ".bin";

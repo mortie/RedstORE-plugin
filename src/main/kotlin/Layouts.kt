@@ -34,7 +34,25 @@ data class Layout(
     val addressSpacing: BlockOffset,
     val data: BlockOffset,
     val dataSpacing: BlockOffset,
-) {}
+) {
+    fun flipAddress(addressBits: Int): Layout {
+        return Layout(
+            address = address.add(addressSpacing.mul(addressBits - 1)),
+            addressSpacing = addressSpacing.inv(),
+            data = data,
+            dataSpacing = dataSpacing,
+        );
+    }
+
+    fun flipData(dataBits: Int): Layout {
+        return Layout(
+            address = address,
+            addressSpacing = addressSpacing,
+            data = data.add(dataSpacing.mul(dataBits - 1)),
+            dataSpacing = dataSpacing.inv(),
+        );
+    }
+}
 
 enum class LayoutDirection {
     NORTH, SOUTH, EAST, WEST;
@@ -123,6 +141,62 @@ private fun diagLayout(
     );
 }
 
+private fun diagCapoA1Layout(
+    dir: LayoutDirection,
+    @Suppress("UNUSED_PARAMETER") addrBits: Int,
+    @Suppress("UNUSED_PARAMETER") dataBits: Int,
+): Layout {
+    var spacing = dir.getSpacing().add(0, 1, 0).mul(2);
+    return Layout(
+        address = BlockOffset(0, 2, 0),
+        addressSpacing = spacing,
+        data = dir.getSpacing().mul(2),
+        dataSpacing = spacing,
+    ).flipAddress(addrBits).flipData(dataBits);
+}
+
+private fun diagCapoB1Layout(
+    dir: LayoutDirection,
+    addrBits: Int,
+    dataBits: Int,
+): Layout {
+    var spacing = dir.getSpacing().add(0, 1, 0).mul(2);
+    return Layout(
+        address = dir.getSpacing().mul(2),
+        addressSpacing = spacing,
+        data = BlockOffset(0, 2, 0),
+        dataSpacing = spacing,
+    ).flipAddress(addrBits).flipData(dataBits);
+}
+
+private fun diagCapoA2Layout(
+    dir: LayoutDirection,
+    addrBits: Int,
+    dataBits: Int,
+): Layout {
+    var spacing = dir.getSpacing().add(0, 1, 0).mul(2);
+    return Layout(
+        address = BlockOffset(0, 3, 0),
+        addressSpacing = spacing,
+        data = dir.getSpacing().mul(3),
+        dataSpacing = spacing,
+    ).flipAddress(addrBits).flipData(dataBits);
+}
+
+private fun diagCapoB2Layout(
+    dir: LayoutDirection,
+    addrBits: Int,
+    dataBits: Int,
+): Layout {
+    var spacing = dir.getSpacing().add(0, 1, 0).mul(2);
+    return Layout(
+        address = dir.getSpacing().mul(3),
+        addressSpacing = spacing,
+        data = BlockOffset(0, 3, 0),
+        dataSpacing = spacing,
+    ).flipAddress(addrBits).flipData(dataBits);
+}
+
 private fun towersLayout(
     dir: LayoutDirection,
     addrBits: Int,
@@ -134,7 +208,7 @@ private fun towersLayout(
         addressSpacing = BlockOffset(0, -2, 0),
         data = spacing.mul(2).add(0, (dataBits - 1) * 2, 0),
         dataSpacing = BlockOffset(0, -2, 0),
-    );
+    ).flipAddress(addrBits).flipData(dataBits);
 }
 
 class Layouts {
@@ -142,8 +216,11 @@ class Layouts {
 
     init {
         layouts.set("line", ::lineLayout)
-        layouts.set("diag", ::diagLayout)
         layouts.set("towers", ::towersLayout)
+        layouts.set("diag:capo:a1", ::diagCapoA1Layout)
+        layouts.set("diag:capo:b1", ::diagCapoB1Layout)
+        layouts.set("diag:capo:a2", ::diagCapoA2Layout)
+        layouts.set("diag:capo:b2", ::diagCapoB2Layout)
     }
 
     fun get(name: String): LayoutSpec? {
