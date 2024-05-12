@@ -266,7 +266,7 @@ class StorageConnection(
 
         var block = dataBlocksStart;
         repeat(props.wordSize) { index ->
-            val bit = num or (1L shl (props.wordSize - index - 1));
+            val bit = num and (1L shl (props.wordSize - index - 1));
             block.setType(if (bit == 0L) props.colorScheme.data else materials.powered);
             block = props.layout.dataSpacing.relativeTo(block);
         }
