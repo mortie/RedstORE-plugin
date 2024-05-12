@@ -83,7 +83,9 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(" Create a new RedstORE connection at your location.");
             p.sendMessage(" Use '/redstore help connect' for info on params.");
             p.sendMessage("${ChatColor.YELLOW}/redstore disconnect");
-            p.sendMessage(" Disconnect the RedstORE connection at your location.");
+            p.sendMessage(" Disconnect the RedstORE connection you're looking at.");
+            p.sendMessage("${ChatColor.YELLOW}/redstore open <file>");
+            p.sendMessage(" Open a new file at the connection you're looking at.");
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
             p.sendMessage(" Get info about the connection you're looking at.");
             p.sendMessage("${ChatColor.YELLOW}/redstore list");
@@ -118,7 +120,10 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage("    Default: muted");
         } else if (command == "disconnect") {
             p.sendMessage("${ChatColor.YELLOW}/redstore disconnect");
-            p.sendMessage(" Disconnect the RedstORE connection at your location.");
+            p.sendMessage(" Disconnect the RedstORE connection you're looking at.");
+        } else if (command == "open") {
+            p.sendMessage("${ChatColor.YELLOW}/redstore open <file>");
+            p.sendMessage(" Open a new file at the connection you're looking at.");
         } else if (command == "query") {
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
             p.sendMessage(" Get info about the connection you're looking at.");
@@ -326,20 +331,49 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             redstore.addStoreConnection(player, props);
         } catch (ex: FileNotFoundException) {
             player.sendMessage(
-                "${ChatColor.RED}Couldn't open ${file}: No such file");
+                "${ChatColor.RED}Couldn't open ${fullFile}: No such file");
         } catch (ex: AccessDeniedException) {
             player.sendMessage(
-                "${ChatColor.RED}Couldn't open ${file}: Permission denied");
+                "${ChatColor.RED}Couldn't open ${fullFile}: Permission denied");
         }
     }
 
     @Subcommand("disconnect")
     fun disconnect(player: Player) {
-        val block = player.getLocation().subtract(0.0, 1.0, 0.0).getBlock();
+        var block = player.rayTraceBlocks(15.0)?.getHitBlock();
+        if (block == null) {
+            player.sendMessage("${ChatColor.RED}You're not looking at a block.");
+            return;
+        }
+
         if (!redstore.removeStoreConnection(block)) {
             player.sendMessage(
                 "${ChatColor.RED}No connection at " +
                 "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
+        }
+    }
+
+    @Subcommand("open")
+    fun open(player: Player, file: String) {
+        var block = player.rayTraceBlocks(15.0)?.getHitBlock();
+        if (block == null) {
+            player.sendMessage("${ChatColor.RED}You're not looking at a block.");
+            return;
+        }
+
+        val fullFile = if (file.endsWith(".bin")) file else file + ".bin";
+        try {
+            if (!redstore.reopenStoreConnection(block, fullFile)) {
+                player.sendMessage(
+                    "${ChatColor.RED}No connection at " +
+                    "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
+            }
+        } catch (ex: FileNotFoundException) {
+            player.sendMessage(
+                "${ChatColor.RED}Couldn't open ${fullFile}: No such file");
+        } catch (ex: AccessDeniedException) {
+            player.sendMessage(
+                "${ChatColor.RED}Couldn't open ${fullFile}: Permission denied");
         }
     }
 

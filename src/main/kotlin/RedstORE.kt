@@ -233,7 +233,8 @@ class RedstORE: JavaPlugin(), Listener {
         props: ConnectionProperties,
     ): Boolean {
         if (!checkPlayerPermission(player, props)) {
-            player.sendMessage("${ChatColor.RED}You don't have permission to do that here.");
+            player.sendMessage(
+                "${ChatColor.RED}You don't have permission to do that here.");
             return false;
         }
 
@@ -243,7 +244,8 @@ class RedstORE: JavaPlugin(), Listener {
 
         addStoreConnectionUnchecked(playerUUID, props, enabled);
         val origin = props.origin;
-        player.sendMessage("${ChatColor.GREEN}Added RedstORE connection at " +
+        player.sendMessage(
+            "${ChatColor.GREEN}Added RedstORE connection at " +
             "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
 
         return true;
@@ -289,7 +291,8 @@ class RedstORE: JavaPlugin(), Listener {
 
         val player = Bukkit.getPlayer(meta.playerUUID);
         if (player != null) {
-            player.sendMessage("Removed RedstORE connection at " +
+            player.sendMessage(
+                "${ChatColor.YELLOW}Removed RedstORE connection at " +
                 "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
         }
 
@@ -301,6 +304,47 @@ class RedstORE: JavaPlugin(), Listener {
 
         conn.close();
         connections.remove(meta.uuid);
+        return true;
+    }
+
+    fun reopenStoreConnection(block: Block, file: String): Boolean {
+        val oldConn = connectionsByOrigin.get(block);
+        if (oldConn == null) {
+            return false;
+        }
+
+        val meta = db!!.getConnectionMetaWithOrigin(block);
+        if (meta == null) {
+            return false;
+        }
+
+        val pair = db!!.getConnection(meta.uuid);
+        if (pair == null) {
+            return false;
+        }
+
+        val (_, oldProps) = pair;
+        val newProps = oldProps.replaceFile(file);
+
+        // Doing this before we destroy the old one,
+        // because it might throw
+        val newConn = StorageConnection(
+            materials!!, logger, this, meta.enabled, meta.playerUUID, newProps);
+
+        oldConn.close();
+        connections.set(meta.uuid, newConn);
+        connectionsByOrigin.set(block, newConn);
+
+        val task = Bukkit.getScheduler().runTaskTimer(this, newConn, 0L, 1L);
+        newConn.task = task;
+
+        val player = Bukkit.getPlayer(meta.playerUUID);
+        if (player != null) {
+            val info = "${newProps.mode} ${newProps.file}"
+            player.sendMessage(
+                "${ChatColor.YELLOW}Reopened RedstORE connection: ${info}");
+        }
+
         return true;
     }
 }

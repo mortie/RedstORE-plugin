@@ -43,7 +43,23 @@ data class ConnectionProperties(
     val pageCount: Int,
     val latency: Int,
     val file: String,
-) {}
+) {
+    fun replaceFile(newFile: String): ConnectionProperties {
+        // Is there a cleaner way to do this?
+        return ConnectionProperties(
+            mode = mode,
+            origin = origin,
+            layout = layout,
+            colorScheme = colorScheme,
+            addressBits = addressBits,
+            wordSize = wordSize,
+            pageSize = pageSize,
+            pageCount = pageCount,
+            latency = latency,
+            file = newFile,
+        )
+    }
+}
 
 data class TxnState(
     val address: Int,

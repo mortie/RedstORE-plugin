@@ -39,7 +39,7 @@ class ColorSchemes {
     ) {
         schemes.set(name, ColorScheme(
             address = Material.matchMaterial(address)!!,
-            addressMSB= Material.matchMaterial(addressMSB)!!,
+            addressMSB = Material.matchMaterial(addressMSB)!!,
             data = Material.matchMaterial(data)!!,
             dataMSB = Material.matchMaterial(dataMSB)!!,
         ));
