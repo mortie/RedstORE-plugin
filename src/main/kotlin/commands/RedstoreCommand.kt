@@ -73,7 +73,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     @Default
     @CatchUnknown
     @Subcommand("help")
-    @CommandCompletion("connect|disconnect|query|list|version|help")
+    @CommandCompletion("connect|disconnect|open|query|list|version|help")
     fun help(p: Player, @Optional command: String?) {
         if (command == null || command == "all") {
             p.sendMessage("${ChatColor.GREEN}Available RedstORE commands:");
@@ -145,6 +145,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     }
 
     @Subcommand("connect")
+    @CommandPermission("redstore.mutate")
     @CommandCompletion("read|write <file> <params...>")
     fun connect(
         player: Player,
@@ -152,6 +153,11 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         file: String,
         params: Array<String>,
     ) {
+        if (!player.hasPermission("redstore")) {
+            Player.sendMessage("${ChatColor.RED}Permission denied.");
+            return;
+        }
+
         @Suppress("NAME_SHADOWING")
         val mode = when (mode) {
             "read" -> ConnMode.READ;
@@ -350,6 +356,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     }
 
     @Subcommand("disconnect")
+    @CommandPermission("redstore.mutate")
     fun disconnect(player: Player) {
         var block = player.rayTraceBlocks(15.0)?.getHitBlock();
         if (block == null) {
@@ -365,6 +372,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     }
 
     @Subcommand("open")
+    @CommandPermission("redstore.mutate")
     fun open(player: Player, file: String) {
         var block = player.rayTraceBlocks(15.0)?.getHitBlock();
         if (block == null) {
