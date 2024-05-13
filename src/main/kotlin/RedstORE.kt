@@ -110,9 +110,19 @@ class RedstORE: JavaPlugin(), Listener {
         val owner = Bukkit.getPlayer(meta.playerUUID);
         val newEnabled = !conn.isEnabled();
 
-        if (newEnabled && !canPlayerEnabledConnection(db!!, meta.playerUUID, conn.props)) {
+        if (
+            newEnabled &&
+            !canPlayerEnabledConnection(db!!, meta.playerUUID, conn.props)
+        ) {
             evt.player.sendMessage(
                 "${ChatColor.RED}Too many connections enabled! Disable some.");
+            return;
+        }
+
+        if (!evt.player.hasPermission("redstore.toggle.other")) {
+            evt.player.sendMessage(
+                "${ChatColor.RED}You don't have permission to toggle " +
+                "other people's connections.");
             return;
         }
 
@@ -149,6 +159,21 @@ class RedstORE: JavaPlugin(), Listener {
     fun onBlockBreak(evt: BlockBreakEvent) {
         if (!connectionsByOrigin.contains(evt.block)) {
             return;
+        }
+
+        if (!evt.player.hasPermission("redstore.admin")) {
+            val meta = db!!.getConnectionMetaWithOrigin(evt.block);
+            if (meta == null) {
+                return;
+            }
+
+            if (meta.playerUUID != evt.player.getUniqueId()) {
+                evt.player.sendMessage(
+                    "${ChatColor.RED}You don't have permission to break " +
+                    "other people's connections.");
+                evt.setCancelled(true);
+                return;
+            }
         }
 
         removeStoreConnection(evt.block);
