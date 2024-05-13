@@ -191,6 +191,21 @@ class StorageConnection(
         task?.cancel();
         transaction = null;
         file.close();
+
+        var block = props.origin;
+        block.setType(Material.AIR);
+
+        block = props.layout.address.relativeTo(props.origin);
+        repeat(props.addressBits) {
+            block.setType(Material.AIR);
+            block = props.layout.addressSpacing.relativeTo(block);
+        }
+
+        block = props.layout.data.relativeTo(props.origin);
+        repeat(props.wordSize) {
+            block.setType(Material.AIR);
+            block = props.layout.dataSpacing.relativeTo(block);
+        }
     }
 
     fun readBlockBits(start: Block, count: Int, spacing: BlockOffset): Int {
