@@ -191,6 +191,10 @@ class StorageConnection(
         task?.cancel();
         transaction = null;
         file.close();
+    }
+
+    fun destroy() {
+        close();
 
         var block = props.origin;
         block.setType(Material.AIR);

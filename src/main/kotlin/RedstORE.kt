@@ -330,7 +330,7 @@ class RedstORE: JavaPlugin(), Listener {
             return true;
         }
 
-        conn.close();
+        conn.destroy();
         return true;
     }
 
