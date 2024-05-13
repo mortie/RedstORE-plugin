@@ -142,16 +142,20 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage("    Default: 8");
             p.sendMessage(" ps=<N>: Set the number of words in a page.");
             p.sendMessage("    Default: 8");
-            p.sendMessage(" count=<N>: Set the number of accessible pages in the file.");
+            p.sendMessage(
+                " count=<N>: Set the number of accessible pages in the file.");
             p.sendMessage("    This dictates the latency of the connection.");
             p.sendMessage("    Default: 2^addr");
-            p.sendMessage(" rate=<N>: Set the data rate, in redstone ticks per wordt.");
+            p.sendMessage(
+                " rate=<N>: Set the data rate, in redstone ticks per wordt.");
             p.sendMessage("    Default: 2");
-            p.sendMessage(" layout=<layout>: Set the layout of the connection. One of:");
+            p.sendMessage(
+                " layout=<layout>: Set the layout of the connection. One of:");
             p.sendMessage("    line, towers, diag,")
             p.sendMessage("    diag:capo:a1, diag:capo:b1, diag:capo:a2, diag:capo:b2");
             p.sendMessage("    Default: line");
-            p.sendMessage(" flip=<y|n|addr|data>: Flip the address and/or data bits.");
+            p.sendMessage(
+                " reverse=<y|n|addr|data>: Reverse the address and/or data bits.");
             p.sendMessage("    Default: n");
             p.sendMessage(" colors=<colors>: Set the color scheme. One of:");
             p.sendMessage("    muted, wool");
@@ -221,7 +225,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         var flipData = false;
 
         for (param in params) {
-            if (param == "flip") {
+            if (param == "reverse") {
                 flipAddr = true;
                 flipData = true;
                 continue;
@@ -283,7 +287,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
                 colorsName = v;
             } else if (k == "layout") {
                 layoutName = v;
-            } else if (k == "flip") {
+            } else if (k == "reverse") {
                 if (v == "addr") {
                     flipAddr = true;
                 } else if (v == "data") {
@@ -295,7 +299,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
                     flipData = false;
                     flipAddr = false;
                 } else {
-                    player.sendMessage("${ChatColor.RED}Invalid flip option: '${v}'");
+                    player.sendMessage(
+                        "${ChatColor.RED}Invalid reverse option: '${v}'");
                     return;
                 }
             } else {
