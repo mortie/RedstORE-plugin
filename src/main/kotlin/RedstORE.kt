@@ -284,7 +284,7 @@ class RedstORE: JavaPlugin(), Listener {
         removeStoreConnection(props.origin);
 
         val origin = props.origin;
-        logger.info("${ChatColor.GREEN}Adding connection at " +
+        logger.info("Adding connection at " +
             "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
 
         // Do this first, so that if it throws an exception
@@ -310,7 +310,7 @@ class RedstORE: JavaPlugin(), Listener {
             return false;
         }
 
-        logger.info("${ChatColor.YELLOW}Removing connection at " +
+        logger.info("Removing connection at " +
             "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
         db!!.removeConnection(meta.uuid);
 
