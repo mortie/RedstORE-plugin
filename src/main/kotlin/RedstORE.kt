@@ -7,6 +7,8 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.Action
+import org.bukkit.event.world.WorldLoadEvent
+import org.bukkit.event.world.WorldUnloadEvent
 import org.bukkit.block.Block
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.ChatColor
@@ -119,7 +121,10 @@ class RedstORE: JavaPlugin(), Listener {
             return;
         }
 
-        if (!evt.player.hasPermission("redstore.toggle.other")) {
+        if (
+            evt.player.getUniqueId() != meta.playerUUID &&
+            !evt.player.hasPermission("redstore.toggle.other")
+        ) {
             evt.player.sendMessage(
                 "${ChatColor.RED}You don't have permission to toggle " +
                 "other people's connections.");
@@ -179,6 +184,56 @@ class RedstORE: JavaPlugin(), Listener {
         removeStoreConnection(evt.block);
     }
 
+    @EventHandler
+    fun onWorldLoad(evt: WorldLoadEvent) {
+        val world = evt.getWorld();
+        logger.info("World loaded: ${world.getUID()}");
+
+        // Add all existing connections in world
+        db!!.getWorldConnections(world.getUID()) { meta, props ->
+            val conn: StorageConnection;
+            try {
+                conn = StorageConnection(
+                    materials!!, logger, this, meta.enabled, meta.playerUUID, props);
+            } catch (ex: Exception) {
+                logger.info("Failed to load connection ${meta.uuid}: ${ex}");
+                return@getWorldConnections;
+            }
+
+            if (meta.enabled) {
+                val task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
+                conn.task = task;
+            }
+
+            connections.set(meta.uuid, conn);
+            connectionsByOrigin.set(props.origin, conn);
+            val origin = props.origin;
+            logger.info(
+                "Loaded connection ${meta.uuid} at " +
+                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})" +
+                " @ ${origin.getWorld().getName()}");
+        }
+    }
+
+    @EventHandler
+    fun onWorldUnload(evt: WorldUnloadEvent) {
+        val world = evt.getWorld();
+        logger.info("World unloading: ${world.getUID()}");
+
+        db!!.getWorldConnections(world.getUID()) { meta, props ->
+            val conn = connections.get(meta.uuid);
+            if (conn == null) {
+                logger.warning("Connection ${meta.uuid} not in world");
+                return@getWorldConnections;
+            }
+
+            logger.info("Closing connection ${meta.uuid}");
+            conn.close();
+            connections.remove(meta.uuid);
+            connectionsByOrigin.remove(props.origin);
+        }
+    }
+
     override fun onEnable() {
         saveDefaultConfig();
 
@@ -209,31 +264,6 @@ class RedstORE: JavaPlugin(), Listener {
 
         PaperCommandManager(this).apply {
             registerCommand(RedstoreCommand(this@RedstORE));
-        }
-
-        // Add all existing connections
-        db!!.getConnections { meta, props ->
-            val conn: StorageConnection;
-            try {
-                conn = StorageConnection(
-                    materials!!, logger, this, meta.enabled, meta.playerUUID, props);
-            } catch (ex: Exception) {
-                logger.info("Failed to load connection ${meta.uuid}: ${ex}");
-                return@getConnections;
-            }
-
-            if (meta.enabled) {
-                val task = Bukkit.getScheduler().runTaskTimer(this, conn, 0L, 1L);
-                conn.task = task;
-            }
-
-            connections.set(meta.uuid, conn);
-            connectionsByOrigin.set(props.origin, conn);
-            val origin = props.origin;
-            logger.info(
-                "Loaded connection ${meta.uuid} at " +
-                "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})" +
-                " @ ${origin.getWorld().getName()}");
         }
 
         getServer().getPluginManager().registerEvents(this, this);

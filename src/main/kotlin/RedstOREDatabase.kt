@@ -302,6 +302,22 @@ class RedstOREDatabase(
         }
     }
 
+    fun getWorldConnections(
+        worldUUID: UUID,
+        cb: (ConnectionMeta, ConnectionProperties) -> Unit,
+    ) {
+        transaction(db) {
+            Connections.select {
+                Connections.worldUUID eq worldUUID
+            }.map {
+                val pair = parseConnection(it);
+                if (pair != null) {
+                    cb(pair.first, pair.second);
+                }
+            }
+        }
+    }
+
     fun close() {
         TransactionManager.closeAndUnregister(db);
     }

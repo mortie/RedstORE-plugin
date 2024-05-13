@@ -6,3 +6,4 @@ commands:
   redstore:
     description: Interface with the RedstORE system
     usage: /redstore <subcommand>
+load: STARTUP
