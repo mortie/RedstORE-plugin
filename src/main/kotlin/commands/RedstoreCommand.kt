@@ -152,7 +152,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(
                 " layout=<layout>: Set the layout of the connection. One of:");
             p.sendMessage("    line, towers, diag,")
-            p.sendMessage("    diag:capo:a1, diag:capo:b1, diag:capo:a2, diag:capo:b2");
+            p.sendMessage("    diag:a1, diag:b1, diag:a2, diag:b2");
             p.sendMessage("    Default: line");
             p.sendMessage(
                 " reverse=<y|n|addr|data>: Reverse the address and/or data bits.");

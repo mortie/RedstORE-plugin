@@ -141,7 +141,7 @@ private fun diagLayout(
     );
 }
 
-private fun diagCapoA1Layout(
+private fun diagA1Layout(
     dir: LayoutDirection,
     @Suppress("UNUSED_PARAMETER") addrBits: Int,
     @Suppress("UNUSED_PARAMETER") dataBits: Int,
@@ -155,7 +155,7 @@ private fun diagCapoA1Layout(
     ).flipAddress(addrBits).flipData(dataBits);
 }
 
-private fun diagCapoB1Layout(
+private fun diagB1Layout(
     dir: LayoutDirection,
     addrBits: Int,
     dataBits: Int,
@@ -169,7 +169,7 @@ private fun diagCapoB1Layout(
     ).flipAddress(addrBits).flipData(dataBits);
 }
 
-private fun diagCapoA2Layout(
+private fun diagA2Layout(
     dir: LayoutDirection,
     addrBits: Int,
     dataBits: Int,
@@ -183,7 +183,7 @@ private fun diagCapoA2Layout(
     ).flipAddress(addrBits).flipData(dataBits);
 }
 
-private fun diagCapoB2Layout(
+private fun diagB2Layout(
     dir: LayoutDirection,
     addrBits: Int,
     dataBits: Int,
@@ -204,10 +204,10 @@ private fun towersLayout(
 ): Layout {
     val spacing = dir.getSpacing().mul(2);
     return Layout(
-        address = spacing.add(0, (addrBits - 1) * 2, 0),
-        addressSpacing = BlockOffset(0, -2, 0),
-        data = spacing.mul(2).add(0, (dataBits - 1) * 2, 0),
-        dataSpacing = BlockOffset(0, -2, 0),
+        address = spacing,
+        addressSpacing = BlockOffset(0, 2, 0),
+        data = spacing.mul(2),
+        dataSpacing = BlockOffset(0, 2, 0),
     ).flipAddress(addrBits).flipData(dataBits);
 }
 
@@ -217,10 +217,10 @@ class Layouts {
     init {
         layouts.set("line", ::lineLayout)
         layouts.set("towers", ::towersLayout)
-        layouts.set("diag:capo:a1", ::diagCapoA1Layout)
-        layouts.set("diag:capo:b1", ::diagCapoB1Layout)
-        layouts.set("diag:capo:a2", ::diagCapoA2Layout)
-        layouts.set("diag:capo:b2", ::diagCapoB2Layout)
+        layouts.set("diag:a1", ::diagA1Layout)
+        layouts.set("diag:b1", ::diagB1Layout)
+        layouts.set("diag:a2", ::diagA2Layout)
+        layouts.set("diag:b2", ::diagB2Layout)
     }
 
     fun get(name: String): LayoutSpec? {
