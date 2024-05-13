@@ -5,12 +5,14 @@ import redstore.ConnectionProperties
 import redstore.ConnMode
 import redstore.LayoutDirection
 import redstore.Layout
+import redstore.RedstOREDatabase
 import co.aikar.commands.BaseCommand
 import co.aikar.commands.annotation.*
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.entity.Player
 import org.bukkit.block.BlockFace
+import org.bukkit.block.Block
 import java.io.FileNotFoundException
 import java.nio.file.AccessDeniedException
 
@@ -65,6 +67,34 @@ fun latencyFromWordSize(wordSize: Int): Int {
 fun calculateLatency(pageCount: Int, pageSize: Int, wordSize: Int): Int {
     return baseLatencyFromWordCount(pageCount * pageSize) +
         latencyFromWordSize(wordSize);
+}
+
+fun canPlayerModifyConnectionAt(
+    db: RedstOREDatabase,
+    player: Player,
+    block: Block,
+): Boolean {
+    if (player.hasPermission("redstore.admin")) {
+        return true;
+    }
+
+    val meta = db.getConnectionMetaWithOrigin(block);
+    if (meta == null) {
+        player.sendMessage(
+                "${ChatColor.RED}No connection at " +
+                "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
+        return false;
+    }
+
+    if (player.getUniqueId() != meta.playerUUID) {
+        player.sendMessage(
+                "${ChatColor.RED}You don't have permission to modify " +
+                "the RedstORE connection at " +
+                "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
+        return false;
+    }
+
+    return true;
 }
 
 @CommandAlias("redstore")
@@ -299,7 +329,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             redstore.colorSchemes.get(colorsName);
         }
         if (colorScheme == null) {
-            player.sendMessage("${ChatColor.RED}Unknown color scheme: ${colorsName!!}");
+            player.sendMessage(
+                "${ChatColor.RED}Unknown color scheme: ${colorsName!!}");
             return;
         }
 
@@ -350,6 +381,10 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             return;
         }
 
+        if (!canPlayerModifyConnectionAt(redstore.db!!, player, block)) {
+            return;
+        }
+
         if (!redstore.removeStoreConnection(block)) {
             player.sendMessage(
                 "${ChatColor.RED}No connection at " +
@@ -363,6 +398,10 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         var block = player.rayTraceBlocks(15.0)?.getHitBlock();
         if (block == null) {
             player.sendMessage("${ChatColor.RED}You're not looking at a block.");
+            return;
+        }
+
+        if (!canPlayerModifyConnectionAt(redstore.db!!, player, block)) {
             return;
         }
 
