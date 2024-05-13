@@ -297,13 +297,15 @@ class RedstORE: JavaPlugin(), Listener {
         }
 
         val conn = connections.get(meta.uuid);
+        connections.remove(meta.uuid);
+        connectionsByOrigin.remove(block);
+
         if (conn == null) {
             logger.warning("Connection exists in database but not in world!");
             return true;
         }
 
         conn.close();
-        connections.remove(meta.uuid);
         return true;
     }
 
