@@ -13,7 +13,7 @@ java {
 }
 
 group = ""
-version = "1.0.0-rc2"
+version = "1.0.0-rc3"
 
 repositories {
     mavenCentral()
