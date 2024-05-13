@@ -284,6 +284,24 @@ class RedstOREDatabase(
         }
     }
 
+    fun getPlayerConnectionMetas(
+        playerUUID: UUID,
+        cb: (ConnectionMeta) -> Unit,
+    ) {
+        transaction(db) {
+            Connections.select {
+                Connections.playerUUID eq playerUUID
+            }.map {
+                val meta = ConnectionMeta(
+                    uuid = it[Connections.uuid],
+                    playerUUID = it[Connections.playerUUID],
+                    enabled = it[Connections.enabled],
+                );
+                cb(meta);
+            }
+        }
+    }
+
     fun close() {
         TransactionManager.closeAndUnregister(db);
     }

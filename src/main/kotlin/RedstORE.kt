@@ -349,4 +349,16 @@ class RedstORE: JavaPlugin(), Listener {
 
         return true;
     }
+
+    fun disableStoreConnection(uuid: UUID) {
+        val conn = connections.get(uuid);
+        if (conn == null) {
+            return;
+        }
+
+        conn.setEnabled(false);
+        db!!.setConnectionEnabled(uuid, false);
+        conn.task?.cancel();
+        conn.task = null;
+    }
 }

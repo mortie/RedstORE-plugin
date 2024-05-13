@@ -13,6 +13,7 @@ import org.bukkit.ChatColor
 import org.bukkit.entity.Player
 import org.bukkit.block.BlockFace
 import org.bukkit.block.Block
+import java.util.UUID
 import java.io.FileNotFoundException
 import java.nio.file.AccessDeniedException
 
@@ -116,6 +117,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(" Disconnect the RedstORE connection you're looking at.");
             p.sendMessage("${ChatColor.YELLOW}/redstore open <file>");
             p.sendMessage(" Open a new file at the connection you're looking at.");
+            p.sendMessage("${ChatColor.YELLOW}/redstore clear");
+            p.sendMessage(" Disable all your enabled connections.");
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
             p.sendMessage(" Get info about the connection you're looking at.");
             p.sendMessage("${ChatColor.YELLOW}/redstore list");
@@ -159,6 +162,9 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         } else if (command == "open") {
             p.sendMessage("${ChatColor.YELLOW}/redstore open <file>");
             p.sendMessage(" Open a new file at the connection you're looking at.");
+        } else if (command == "clear") {
+            p.sendMessage("${ChatColor.YELLOW}/redstore clear");
+            p.sendMessage(" Disable all your enabled connections.");
         } else if (command == "query") {
             p.sendMessage("${ChatColor.YELLOW}/redstore query");
             p.sendMessage(" Get info about the connection you're looking at.");
@@ -418,6 +424,18 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         } catch (ex: AccessDeniedException) {
             player.sendMessage(
                 "${ChatColor.RED}Couldn't open ${fullFile}: Permission denied");
+        }
+    }
+
+    @Subcommand("clear")
+    @CommandPermission("redstore.mutate")
+    fun clear(player: Player) {
+        redstore.db!!.getPlayerConnectionMetas(player.getUniqueId()) { meta ->
+            if (!meta.enabled) {
+                return@getPlayerConnectionMetas;
+            }
+
+            redstore.disableStoreConnection(meta.uuid);
         }
     }
 
