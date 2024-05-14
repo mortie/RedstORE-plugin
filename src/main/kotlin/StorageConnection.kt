@@ -127,22 +127,18 @@ class StorageConnection(
     val addressBlocksStart: Block;
     val dataBlocksStart: Block;
     val pageSizeBytes: Int;
-    val file: RandomAccessFile;
+    val filePath: Path;
 
     var transaction: TxnState? = null;
 
     init {
         val basePath = getBasePath(redstore.basePath!!, playerUUID.toString()).normalize();
-        val path = basePath.resolve(props.file).normalize();
-        if (!path.startsWith(basePath)) {
+        filePath = basePath.resolve(props.file).normalize();
+        if (!filePath.startsWith(basePath)) {
             throw AccessDeniedException(props.file);
         }
 
-        path.getParent().toFile().mkdirs();
-        file = RandomAccessFile(path.toFile(), when (props.mode) {
-            ConnMode.READ -> "r";
-            ConnMode.WRITE -> "rw";
-        });
+        filePath.getParent().toFile().mkdirs();
 
         pageSizeBytes = Math.ceil(
             (props.pageSize.toDouble() * props.wordSize.toDouble()) /
@@ -190,7 +186,6 @@ class StorageConnection(
     fun close() {
         task?.cancel();
         transaction = null;
-        file.close();
     }
 
     fun destroy() {
@@ -267,8 +262,16 @@ class StorageConnection(
 
             val txn = transaction!!;
             if (props.mode == ConnMode.READ && address < props.pageCount) {
-                file.seek(address.toLong() * pageSizeBytes);
-                file.read(txn.page);
+                var file: RandomAccessFile? = null;
+                try {
+                    file = RandomAccessFile(filePath.toFile(), "r");
+                    file.seek(address.toLong() * pageSizeBytes);
+                    file.read(txn.page);
+                } catch (ex: Exception) {
+                    logger.warning("Failed to read file: ${ex.toString()}");
+                } finally {
+                    file?.close();
+                }
             }
 
             props.origin.setType(pendingMaterial);
@@ -371,12 +374,19 @@ class StorageConnection(
 
         if (props.mode == ConnMode.WRITE && txn.address < props.pageCount) {
             val length = (txn.address.toLong() + 1L) * pageSizeBytes;
-            if (file.length() < length) {
-                file.setLength(length);
+            var file: RandomAccessFile? = null;
+            try {
+                file = RandomAccessFile(filePath.toFile(), "rw");
+                if (file.length() < length) {
+                    file.setLength(length);
+                }
+                file.seek(txn.address.toLong() * pageSizeBytes);
+                file.write(txn.page);
+            } catch (ex: Exception) {
+                logger.warning("Failed to write file: ${ex.toString()}");
+            } finally {
+                file?.close();
             }
-
-            file.seek(txn.address.toLong() * pageSizeBytes);
-            file.write(txn.page);
         }
     }
 
