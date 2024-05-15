@@ -16,6 +16,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Material
 import co.aikar.commands.PaperCommandManager
 import java.util.UUID
+import java.nio.file.Path
 import commands.RedstoreCommand
 import redstore.RedstOREDatabase
 import redstore.ConnMode
@@ -246,6 +247,7 @@ class RedstORE: JavaPlugin(), Listener {
 
         basePath = basePath!!.replace("%redstore%", dataFolder.toString());
         logger.info("Using base path pattern: '${basePath}'");
+        logger.info("  ('${Path.of(basePath).normalize().toAbsolutePath()}')");
 
         dataFolder.mkdirs();
         val dbFile = dataFolder.resolve("redstore.db").toString();
@@ -391,6 +393,7 @@ class RedstORE: JavaPlugin(), Listener {
         oldConn.close();
         connections.set(meta.uuid, newConn);
         connectionsByOrigin.set(block, newConn);
+        db!!.setConnectionFile(meta.uuid, file);
 
         val task = Bukkit.getScheduler().runTaskTimer(this, newConn, 0L, 1L);
         newConn.task = task;

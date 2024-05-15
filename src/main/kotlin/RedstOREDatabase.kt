@@ -258,6 +258,14 @@ class RedstOREDatabase(
         }
     }
 
+    fun setConnectionFile(uuid: UUID, file: String) {
+        transaction(db) {
+            Connections.update({ Connections.uuid eq uuid }) {
+                it[Connections.filePath] = file;
+            }
+        }
+    }
+
     fun getConnections(cb: (ConnectionMeta, ConnectionProperties) -> Unit) {
         transaction(db) {
             Connections.selectAll().map {
