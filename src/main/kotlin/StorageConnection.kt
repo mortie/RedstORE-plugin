@@ -183,6 +183,19 @@ class StorageConnection(
         }
     }
 
+    // Throws an exception if opening the file fails
+    fun healthcheck() {
+        var file: RandomAccessFile? = null;
+        try {
+            file = RandomAccessFile(filePath.toFile(), when (props.mode) {
+                ConnMode.READ -> "r";
+                ConnMode.WRITE -> "rw";
+            });
+        } finally {
+            file?.close();
+        }
+    }
+
     fun close() {
         task?.cancel();
         transaction = null;

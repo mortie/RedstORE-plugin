@@ -334,6 +334,14 @@ class RedstORE: JavaPlugin(), Listener {
 
         connections.set(uuid, conn);
         connectionsByOrigin.set(props.origin, conn);
+
+        try {
+            conn.healthcheck();
+        } catch (ex: Exception) {
+            logger.warning("Connection seems unhealthy: ${ex.toString()}");
+            Bukkit.getPlayer(playerUUID)?.sendMessage(
+                "${ChatColor.YELLOW}Connection might not work: ${ex.message}");
+        }
     }
 
     fun removeStoreConnection(block: Block): Boolean {
@@ -403,6 +411,14 @@ class RedstORE: JavaPlugin(), Listener {
             val info = "${newProps.mode} ${newProps.file}"
             player.sendMessage(
                 "${ChatColor.YELLOW}Reopened RedstORE connection: ${info}");
+        }
+
+        try {
+            newConn.healthcheck();
+        } catch (ex: Exception) {
+            logger.warning("Connection seems unhealthy: ${ex.toString()}");
+            player?.sendMessage(
+                "${ChatColor.YELLOW}Connection might not work: ${ex.message}");
         }
 
         return true;
