@@ -108,7 +108,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
     @Default
     @CatchUnknown
     @Subcommand("help")
-    @CommandCompletion("connect|disconnect|open|query|list|version|help")
+    @CommandCompletion(
+        "connect|disconnect|open|query|list|list-files|del-file|version|help")
     fun help(p: Player, @Optional command: String?) {
         if (command == null || command == "all") {
             p.sendMessage("${ChatColor.GREEN}Available RedstORE commands:");
@@ -127,6 +128,10 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(" Get info about the connection you're looking at.");
             p.sendMessage("${ChatColor.YELLOW}/redstore list");
             p.sendMessage(" List your connections.");
+            p.sendMessage("${ChatColor.YELLOW}/redstore list-files");
+            p.sendMessage(" List your files.");
+            p.sendMessage("${ChatColor.YELLOW}/redstore del-file <file>");
+            p.sendMessage(" Delete a file.");
             p.sendMessage("${ChatColor.YELLOW}/redstore version");
             p.sendMessage(" Print version string.");
             p.sendMessage("${ChatColor.YELLOW}/redstore help <subcommand>");
@@ -179,6 +184,12 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         } else if (command == "list") {
             p.sendMessage("${ChatColor.YELLOW}/redstore list");
             p.sendMessage(" List your connections.");
+        } else if (command == "list-files") {
+            p.sendMessage("${ChatColor.YELLOW}/redstore list-files");
+            p.sendMessage(" List your files.");
+        } else if (command == "del-file") {
+            p.sendMessage("${ChatColor.YELLOW}/redstore del-file <file>");
+            p.sendMessage(" Delete a file.");
         } else if (command == "version") {
             p.sendMessage("${ChatColor.YELLOW}/redstore version");
             p.sendMessage(" Print version string.");
