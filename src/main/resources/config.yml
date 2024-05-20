@@ -1,1 +1,4 @@
 base-path: '%redstore%/files/%uuid%'
+max-player-file-count: 100
+max-player-space-usage: 2M
+max-file-size: 2M

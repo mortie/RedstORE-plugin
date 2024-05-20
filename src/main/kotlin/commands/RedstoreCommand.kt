@@ -6,6 +6,10 @@ import redstore.ConnMode
 import redstore.LayoutDirection
 import redstore.Layout
 import redstore.RedstOREDatabase
+import redstore.listPlayerFiles
+import redstore.deletePlayerFile
+import redstore.calcPlayerSpaceUsage
+import redstore.calcPlayerFileCount
 import co.aikar.commands.BaseCommand
 import co.aikar.commands.annotation.*
 import org.bukkit.Bukkit
@@ -374,12 +378,9 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
 
         try {
             redstore.addStoreConnection(player, props);
-        } catch (ex: FileNotFoundException) {
+        } catch (ex: Exception) {
             player.sendMessage(
-                "${ChatColor.RED}Couldn't open ${fullFile}: No such file");
-        } catch (ex: AccessDeniedException) {
-            player.sendMessage(
-                "${ChatColor.RED}Couldn't open ${fullFile}: Permission denied");
+                "${ChatColor.RED}Couldn't open ${fullFile}: ${ex.message}");
         }
     }
 
@@ -423,12 +424,9 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
                     "${ChatColor.RED}No connection at " +
                     "(${block.getX()}, ${block.getY()}, ${block.getZ()})");
             }
-        } catch (ex: FileNotFoundException) {
+        } catch (ex: Exception) {
             player.sendMessage(
-                "${ChatColor.RED}Couldn't open ${fullFile}: No such file");
-        } catch (ex: AccessDeniedException) {
-            player.sendMessage(
-                "${ChatColor.RED}Couldn't open ${fullFile}: Permission denied");
+                "${ChatColor.RED}Couldn't open ${fullFile}: ${ex.message}");
         }
     }
 
@@ -492,6 +490,35 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             player.sendMessage(
                 "  (${origin.getX()}, ${origin.getY()}, ${origin.getZ()})" +
                 " @ ${origin.getWorld().getName()}: ${props.mode} (${meta.uuid})");
+        }
+    }
+
+    @Subcommand("list-files")
+    fun listFiles(player: Player) {
+        val uuid = player.getUniqueId();
+
+        player.sendMessage("${ChatColor.GREEN}Your RedstORE files:");
+        listPlayerFiles(redstore.basePath!!, uuid) { name, file ->
+            player.sendMessage("  ${name}: ${file.length()} bytes");
+        }
+
+        val spaceUsage = calcPlayerSpaceUsage(redstore.basePath!!, uuid);
+        val fileCount = calcPlayerFileCount(redstore.basePath!!, uuid);
+        player.sendMessage(
+            "Used ${spaceUsage}/${redstore.maxPlayerSpaceUsage} bytes, " +
+            "${fileCount}/${redstore.maxPlayerFileCount} files");
+    }
+
+    @Subcommand("del-file")
+    @CommandCompletion("<file>")
+    fun delFile(player: Player, file: String) {
+        val fullFile = if (file.endsWith(".bin")) file else file + ".bin";
+
+        val uuid = player.getUniqueId();
+        if (deletePlayerFile(redstore.basePath!!, uuid, fullFile)) {
+            player.sendMessage("${ChatColor.GREEN}${fullFile} deleted.");
+        } else {
+            player.sendMessage("${ChatColor.RED}Couldn't delete ${fullFile}.");
         }
     }
 

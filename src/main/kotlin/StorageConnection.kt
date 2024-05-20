@@ -7,6 +7,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.Material
 import org.bukkit.scheduler.BukkitTask
+import org.bukkit.ChatColor
 import java.util.logging.Logger
 import java.util.UUID
 import java.nio.file.Path
@@ -17,6 +18,9 @@ import java.lang.Math
 import redstore.ColorScheme
 import redstore.BlockOffset
 import redstore.Layout
+import redstore.getPlayerBasePath
+import redstore.calcDirFileCount
+import redstore.calcDirSize
 
 class Materials(
     val readDisabled: Material,
@@ -72,7 +76,7 @@ data class TxnState(
     var bitPosition: Int,
 ) {}
 
-fun checkPlayerCanBreak(player: Player, block: Block): Boolean {
+private fun checkPlayerCanBreak(player: Player, block: Block): Boolean {
     val evt = BlockBreakEvent(block, player);
     Bukkit.getServer().getPluginManager().callEvent(evt);
     return !evt.isCancelled();
@@ -106,16 +110,12 @@ fun checkPlayerPermission(player: Player, props: ConnectionProperties): Boolean 
     return true;
 }
 
-fun getBasePath(template: String, playerUUID: String): Path {
-    return Path.of(template.replace("%uuid%", playerUUID));
-}
-
 class StorageConnection(
     private val materials: Materials,
     private val logger: Logger,
     private val redstore: RedstORE,
     private var enabled: Boolean,
-    playerUUID: UUID,
+    private var playerUUID: UUID,
     public val props: ConnectionProperties,
 ): Runnable {
     public var task: BukkitTask? = null;
@@ -128,11 +128,13 @@ class StorageConnection(
     val dataBlocksStart: Block;
     val pageSizeBytes: Int;
     val filePath: Path;
+    val basePath: Path;
 
     var transaction: TxnState? = null;
 
     init {
-        val basePath = getBasePath(redstore.basePath!!, playerUUID.toString()).normalize();
+
+        basePath = getPlayerBasePath(redstore.basePath!!, playerUUID);
         filePath = basePath.resolve(props.file).normalize();
         if (!filePath.startsWith(basePath)) {
             throw AccessDeniedException(props.file);
@@ -157,7 +159,6 @@ class StorageConnection(
             }
         }
 
-
         var block: Block;
 
         block = props.origin;
@@ -181,6 +182,15 @@ class StorageConnection(
             block = props.layout.dataSpacing.relativeTo(block);
             block.setType(props.colorScheme.data);
         }
+    }
+
+    fun sendMessageToOwner(msg: String) {
+        val player = Bukkit.getPlayer(playerUUID);
+        if (player == null) {
+            return;
+        }
+
+        player.sendMessage(msg);
     }
 
     // Throws an exception if opening the file fails
@@ -281,7 +291,8 @@ class StorageConnection(
                     file.seek(address.toLong() * pageSizeBytes);
                     file.read(txn.page);
                 } catch (ex: Exception) {
-                    logger.warning("Failed to read file: ${ex.toString()}");
+                    logger.warning("Failed to read ${filePath}: ${ex.toString()}");
+                    sendMessageToOwner("Failed to read ${props.file}!");
                 } finally {
                     file?.close();
                 }
@@ -390,13 +401,18 @@ class StorageConnection(
             var file: RandomAccessFile? = null;
             try {
                 file = RandomAccessFile(filePath.toFile(), "rw");
-                if (file.length() < length) {
+                val oldLength = file.length();
+                if (oldLength < length) {
+                    if (!canPlayerExtendFile(oldLength, length)) {
+                        return;
+                    }
                     file.setLength(length);
                 }
                 file.seek(txn.address.toLong() * pageSizeBytes);
                 file.write(txn.page);
             } catch (ex: Exception) {
                 logger.warning("Failed to write file: ${ex.toString()}");
+                sendMessageToOwner("Failed to write to ${props.file}!");
             } finally {
                 file?.close();
             }
@@ -421,5 +437,25 @@ class StorageConnection(
                 ConnMode.WRITE -> handleWrite();
             }
         }
+    }
+
+    fun canPlayerExtendFile(oldLength: Long, newLength: Long): Boolean {
+        if (newLength > redstore.maxFileSize) {
+            sendMessageToOwner(
+                "${ChatColor.RED}Can't increase file size: " +
+                "Would exceed max file size ${redstore.maxFileSize} bytes");
+            return false;
+        }
+
+        val newDirSize = calcDirSize(basePath.toFile()) + (newLength - oldLength);
+        if (newDirSize > redstore.maxPlayerSpaceUsage) {
+            sendMessageToOwner(
+                "${ChatColor.RED}Can't increase file size: " +
+                "Would exceed max total space usage " +
+                "${redstore.maxPlayerSpaceUsage} bytes");
+            return false;
+        }
+
+        return true;
     }
 }

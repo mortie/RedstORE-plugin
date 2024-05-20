@@ -14,6 +14,7 @@ import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.ChatColor
 import org.bukkit.Bukkit
 import org.bukkit.Material
+import org.bukkit.configuration.MemorySection
 import co.aikar.commands.PaperCommandManager
 import java.util.UUID
 import java.nio.file.Path
@@ -23,6 +24,23 @@ import redstore.ConnMode
 import redstore.ColorSchemes
 import redstore.Layouts
 import redstore.checkPlayerPermission
+
+fun parseSizeValue(config: MemorySection, name: String): Long {
+    if (config.isInt(name)) {
+        return config.getLong(name);
+    }
+
+    val str = config.getString(name)!!;
+    if (str.endsWith("G")) {
+        return str.removeSuffix("G").toLong() * 1024 * 1024 * 1024;
+    } else if (str.endsWith("M")) {
+        return str.removeSuffix("M").toLong() * 1024 * 1024;
+    } else if (str.endsWith("k")) {
+        return str.removeSuffix("k").toLong() * 1024;
+    } else {
+        return str.toLong();
+    }
+}
 
 fun canPlayerEnabledConnection(
     db: RedstOREDatabase,
@@ -83,6 +101,9 @@ class RedstORE: JavaPlugin(), Listener {
     public val layouts = Layouts();
     public var db: RedstOREDatabase? = null;
     public var basePath: String? = null;
+    public var maxPlayerFileCount: Int = 0;
+    public var maxPlayerSpaceUsage: Long = 0;
+    public var maxFileSize: Long = 0;
 
     @EventHandler
     fun onPlayerInteraction(evt: PlayerInteractEvent) {
@@ -238,7 +259,9 @@ class RedstORE: JavaPlugin(), Listener {
     override fun onEnable() {
         saveDefaultConfig();
 
-        basePath = getConfig().get("base-path").toString();
+        var config = getConfig();
+
+        basePath = config.get("base-path").toString();
         if (basePath == null) {
             logger.severe("config.yml missing 'base-path'!");
             setEnabled(false);
@@ -246,8 +269,14 @@ class RedstORE: JavaPlugin(), Listener {
         }
 
         basePath = basePath!!.replace("%redstore%", dataFolder.toString());
+        maxPlayerFileCount = config.getInt("max-player-file-count");
+        maxPlayerSpaceUsage = parseSizeValue(config, "max-player-space-usage");
+        maxFileSize = parseSizeValue(config, "max-file-size");
         logger.info("Using base path pattern: '${basePath}'");
         logger.info("  ('${Path.of(basePath).normalize().toAbsolutePath()}')");
+        logger.info("Max file count per player: ${maxPlayerFileCount}");
+        logger.info("Max space usage per player: ${maxPlayerSpaceUsage}");
+        logger.info("Max file size: ${maxFileSize}");
 
         dataFolder.mkdirs();
         val dbFile = dataFolder.resolve("redstore.db").toString();
@@ -288,14 +317,24 @@ class RedstORE: JavaPlugin(), Listener {
     fun addStoreConnection(
         player: Player,
         props: ConnectionProperties,
-    ): Boolean {
+    ) {
         if (!checkPlayerPermission(player, props)) {
             player.sendMessage(
                 "${ChatColor.RED}You don't have permission to do that here.");
-            return false;
+            return;
         }
 
         val playerUUID = player.getUniqueId();
+
+        val playerFileCount = calcPlayerFileCount(basePath!!, playerUUID);
+        if (
+            props.mode == ConnMode.WRITE &&
+            playerFileCount >= maxPlayerFileCount
+        ) {
+            player.sendMessage("${ChatColor.RED}File count exceeded");
+            return;
+        }
+
         val enabled = canPlayerEnabledConnection(
             db!!, playerUUID, props);
 
@@ -305,7 +344,7 @@ class RedstORE: JavaPlugin(), Listener {
             "${ChatColor.GREEN}Added RedstORE connection at " +
             "(${origin.getX()}, ${origin.getY()}, ${origin.getZ()})");
 
-        return true;
+        return;
     }
 
     private fun addStoreConnectionUnchecked(
@@ -390,8 +429,21 @@ class RedstORE: JavaPlugin(), Listener {
             return false;
         }
 
+        val player = Bukkit.getPlayer(meta.playerUUID);
+
         val (_, oldProps) = pair;
         val newProps = oldProps.replaceFile(file);
+
+        val playerFileCount = calcPlayerFileCount(basePath!!, meta.playerUUID);
+        if (
+            newProps.mode == ConnMode.WRITE &&
+            playerFileCount >= maxPlayerFileCount
+        ) {
+            if (player != null) {
+                player.sendMessage("${ChatColor.RED}File count exceeded");
+            }
+            return true;
+        }
 
         // Doing this before we destroy the old one,
         // because it might throw
@@ -406,7 +458,6 @@ class RedstORE: JavaPlugin(), Listener {
         val task = Bukkit.getScheduler().runTaskTimer(this, newConn, 0L, 1L);
         newConn.task = task;
 
-        val player = Bukkit.getPlayer(meta.playerUUID);
         if (player != null) {
             val info = "${newProps.mode} ${newProps.file}"
             player.sendMessage(
