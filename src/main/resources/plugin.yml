@@ -1,5 +1,5 @@
 name: RedstORE
-version: 1.0.0-rc4
+version: 1.0.0
 main: redstore.RedstORE
 api-version: 1.16
 commands:
