@@ -46,6 +46,7 @@ data class ConnectionProperties(
     val pageSize: Int,
     val pageCount: Int,
     val latency: Int,
+    val skew: Int,
     val dataRate: Int,
     val file: String,
 ) {
@@ -61,6 +62,7 @@ data class ConnectionProperties(
             pageSize = pageSize,
             pageCount = pageCount,
             latency = latency,
+            skew = skew,
             dataRate = dataRate,
             file = newFile,
         )
@@ -72,6 +74,7 @@ data class TxnState(
     val page: ByteArray,
 
     var timer: Int,
+    var skewTimer: Int,
     var bytePosition: Int,
     var bitPosition: Int,
 ) {}
@@ -133,7 +136,6 @@ class StorageConnection(
     var transaction: TxnState? = null;
 
     init {
-
         basePath = getPlayerBasePath(redstore.basePath!!, playerUUID);
         filePath = basePath.resolve(props.file).normalize();
         if (!filePath.startsWith(basePath)) {
@@ -278,6 +280,7 @@ class StorageConnection(
                 address = address,
                 page = ByteArray(pageSizeBytes),
 
+                skewTimer = props.latency * 2, // 2 redstone ticks per game tick
                 timer = props.latency * 2, // 2 redstone ticks per game tick
                 bytePosition = 0,
                 bitPosition = 0,
@@ -306,8 +309,6 @@ class StorageConnection(
     }
 
     fun handleRead() {
-        props.origin.setType(materials.powered);
-
         val txn = transaction!!;
 
         var num = 0L;
@@ -422,8 +423,14 @@ class StorageConnection(
     fun handleTransaction() {
         val txn = transaction!!;
 
+        txn.skewTimer -= 1;
         txn.timer -= 1;
         val tick = txn.timer <= 0;
+
+        // Handle skew (only applies to read connections)
+        if (props.mode == ConnMode.READ && txn.skewTimer <= props.skew * 2) {
+            props.origin.setType(materials.powered);
+        }
 
         if (tick) {
             if (txn.bytePosition >= txn.page.size) {

@@ -169,6 +169,13 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             p.sendMessage(" colors=<colors>: Set the color scheme. One of:");
             p.sendMessage("    muted, wool");
             p.sendMessage("    Default: muted");
+            p.sendMessage(" skew: Offset the activation of the origin block by");
+            p.sendMessage("    some number of redstone ticks.");
+            p.sendMessage("    Default: 0");
+            p.sendMessage(" latency: Set the minimum redstone ticks of latency.");
+            p.sendMessage("    Without this, latency is determined by 'count'.");
+            p.sendMessage("    This option can't decrease latency, only increase it.");
+            p.sendMessage("    Default: 0");
         } else if (command == "disconnect") {
             p.sendMessage("${ChatColor.YELLOW}/redstore disconnect");
             p.sendMessage(" Disconnect the RedstORE connection you're looking at.");
@@ -234,6 +241,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
         var pageSize = 8;
         var pageCount = -1;
         var dataRate = 2;
+        var skew: Int = 0;
+        var minLatency: Int = 0;
         var layoutName: String? = null;
         var colorsName: String? = null;
         var flipAddr = false;
@@ -318,6 +327,16 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
                         "${ChatColor.RED}Invalid reverse option: '${v}'");
                     return;
                 }
+            } else if (k == "skew") {
+                if (mode != ConnMode.READ) {
+                    player.sendMessage(
+                        "${ChatColor.RED}'skew' option only applies " +
+                        "to read connections");
+                    return;
+                }
+                skew = v.toInt();
+            } else if (k == "latency") {
+                minLatency = v.toInt();
             } else {
                 player.sendMessage("${ChatColor.RED}Unknown parameter: '${k}'");
                 return;
@@ -334,10 +353,10 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             pageCount = maxPageCount;
         }
 
-        val latency = when (mode) {
+        val latency = Math.max(when (mode) {
             ConnMode.READ -> calculateLatency(pageCount, pageSize, wordSize);
             ConnMode.WRITE -> 0;
-        }
+        }, minLatency);
 
         val layoutSpec = if (layoutName == null) {
             redstore.layouts.getDefault();
@@ -383,6 +402,7 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             pageSize = pageSize,
             pageCount = pageCount,
             latency = latency,
+            skew = skew,
             dataRate = dataRate,
             file = fullFile,
         );
@@ -490,7 +510,8 @@ class RedstoreCommand(private val redstore: RedstORE): BaseCommand() {
             "ws=${props.wordSize} " +
             "ps=${props.pageSize} " +
             "count=${props.pageCount} " +
-            "rate=${props.dataRate}");
+            "rate=${props.dataRate} " + 
+            "skew=${props.skew}");
     }
 
     @Subcommand("list")

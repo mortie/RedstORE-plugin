@@ -51,6 +51,7 @@ object Connections: Table("storage_connections_v1") {
     val pageSize = integer("page_size");
     val pageCount = integer("page_count");
     val latency = integer("latency");
+    val skew = integer("skew").default(0);
     val dataRate = integer("data_rate");
     val filePath = text("file_path");
     val playerUUID = uuid("player_uuid");
@@ -72,7 +73,7 @@ class RedstOREDatabase(
 
     init {
         transaction(db) {
-            SchemaUtils.create(Connections);
+            SchemaUtils.createMissingTablesAndColumns(Connections);
         }
     }
 
@@ -159,6 +160,7 @@ class RedstOREDatabase(
             pageSize = it[Connections.pageSize],
             pageCount = it[Connections.pageCount],
             latency = it[Connections.latency],
+            skew = it[Connections.skew],
             dataRate = it[Connections.dataRate],
             file = it[Connections.filePath],
         );
@@ -236,6 +238,7 @@ class RedstOREDatabase(
                 it[Connections.pageSize] = props.pageSize;
                 it[Connections.pageCount] = props.pageCount;
                 it[Connections.latency] = props.latency;
+                it[Connections.skew] = props.skew;
                 it[Connections.dataRate] = props.dataRate;
                 it[Connections.filePath] = props.file.toString();
                 it[Connections.playerUUID] = playerUUID;
