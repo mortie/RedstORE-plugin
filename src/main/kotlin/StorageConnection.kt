@@ -21,6 +21,7 @@ import redstore.Layout
 import redstore.getPlayerBasePath
 import redstore.calcDirFileCount
 import redstore.calcDirSize
+import kotlin.math.max
 
 class Materials(
     val readDisabled: Material,
@@ -73,10 +74,15 @@ data class TxnState(
     val address: Int,
     val page: ByteArray,
 
-    var timer: Int,
-    var skewTimer: Int,
-    var bytePosition: Int,
-    var bitPosition: Int,
+    val startTick: Int,
+    val signalStartTick: Int,
+    val signalEndTick: Int,
+    val endTick: Int,
+
+    var tickTimer: Int = 0,
+    var proceedTimer: Int = 0,
+    var bytePosition: Int = 0,
+    var bitPosition: Int = 0,
 ) {}
 
 private fun checkPlayerCanBreak(player: Player, block: Block): Boolean {
@@ -276,14 +282,18 @@ class StorageConnection(
             val address = readBlockBits(
                 addressBlocksStart, props.addressBits, props.layout.addressSpacing);
 
+            val latency = props.latency * 2;
+            val duration = props.pageSize * props.dataRate * 2;
+            val skew = props.skew * 2;
+
             transaction = TxnState(
                 address = address,
                 page = ByteArray(pageSizeBytes),
 
-                skewTimer = props.latency * 2, // 2 redstone ticks per game tick
-                timer = props.latency * 2, // 2 redstone ticks per game tick
-                bytePosition = 0,
-                bitPosition = 0,
+                startTick = latency,
+                signalStartTick = latency + skew,
+                signalEndTick = latency + duration + skew,
+                endTick = max(latency + duration + skew, latency + duration),
             );
 
             val txn = transaction!!;
@@ -374,15 +384,7 @@ class StorageConnection(
         }
     }
 
-    fun endTransaction() {
-        val txn = transaction!!;
-        transaction = null;
-
-        props.origin.setType(when (enabled) {
-            true -> enabledMaterial;
-            false -> disabledMaterial;
-        });
-
+    fun resetAddressAndDataBits() {
         var block = addressBlocksStart;
         block.setType(props.colorScheme.addressMSB);
         repeat(props.addressBits - 1) {
@@ -396,6 +398,18 @@ class StorageConnection(
             block = props.layout.dataSpacing.relativeTo(block);
             block.setType(props.colorScheme.data);
         }
+    }
+
+    fun endTransaction() {
+        val txn = transaction!!;
+        transaction = null;
+
+        resetAddressAndDataBits();
+
+        props.origin.setType(when (enabled) {
+            true -> enabledMaterial;
+            false -> disabledMaterial;
+        });
 
         if (props.mode == ConnMode.WRITE && txn.address < props.pageCount) {
             val length = (txn.address.toLong() + 1L) * pageSizeBytes;
@@ -423,22 +437,37 @@ class StorageConnection(
     fun handleTransaction() {
         val txn = transaction!!;
 
-        txn.skewTimer -= 1;
-        txn.timer -= 1;
-        val tick = txn.timer <= 0;
+        val tick = txn.tickTimer++;
 
-        // Handle skew (only applies to read connections)
-        if (props.mode == ConnMode.READ && txn.skewTimer <= props.skew * 2) {
-            props.origin.setType(materials.powered);
-        }
-
-        if (tick) {
-            if (txn.bytePosition >= txn.page.size) {
-                endTransaction();
-                return;
+        if (props.mode == ConnMode.READ) {
+            if (tick == txn.signalStartTick ) {
+                props.origin.setType(materials.powered);
             }
 
-            txn.timer = props.dataRate * 2;
+            if (tick == txn.signalEndTick ) {
+                props.origin.setType(pendingMaterial);
+            }
+        }
+
+        if (tick < txn.startTick) {
+            return;
+        }
+
+        if (tick >= txn.endTick) {
+            endTransaction();
+            return;
+        }
+
+        txn.proceedTimer -= 1;
+        if (txn.proceedTimer > 0) {
+            return;
+        }
+
+        if (txn.bytePosition == txn.page.size) {
+            resetAddressAndDataBits();
+            txn.bytePosition += 1;
+        } else if (txn.bytePosition < txn.page.size) {
+            txn.proceedTimer = props.dataRate * 2;
             when (props.mode) {
                 ConnMode.READ -> handleRead();
                 ConnMode.WRITE -> handleWrite();
